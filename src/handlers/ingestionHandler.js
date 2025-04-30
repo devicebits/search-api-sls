@@ -1,19 +1,19 @@
-const { getDbData } = require('../utils/dbClient');
+const { getDbData } = require('../utils/dbQueries');
 const  ElasticSearchClient  = require('../engines/ElasticSearch/elasticSearchClient');
 
 module.exports.ingest = async (event) => {
   try {
     const body = event.body ? JSON.parse(event.body) : event;
-    const { searchEngine, params } = body;
+    const { searchEngine, customerId } = body;
 
-    const data = await getDbData(params);
+    const data = await getDbData(customerId);
 
     let client;
     switch (searchEngine?.toLowerCase()) {
       case 'elasticsearch':
         client = new ElasticSearchClient({
           node: process.env.ELASTICSEARCH_ENDPOINT,
-          index: `customer-${params.id}`
+          index: `customer-${customerId}`
         });
         break;
       default:

@@ -21,7 +21,7 @@ This is the repository that manages all the calls to various search engines like
 
 **1. Create an index and ingest data**
 
-This endpoint retrieves data from a database and ingests it into a specified search engine (currently supports Elasticsearch). It dynamically creates a customer-specific index (e.g., customer-111) if it doesn't exist and performs bulk indexing of the retrieved data.
+This endpoint retrieves data from a database and ingests it into a specified search engine (currently supports Elasticsearch). It dynamically creates a customer-specific index (e.g., customer-222) if it doesn't exist and performs bulk indexing of the retrieved data.
 
 URL - http://localhost:3000/create
 
@@ -32,10 +32,8 @@ Payload
 ```
   {
     "searchEngine": "elasticsearch",
-    "params": {
-        "id": 222
-    }
-}
+    "customerId": 222
+  }
 ```
 
 **2. Retrieve all documents in an index**
