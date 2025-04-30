@@ -1,4 +1,4 @@
-service: search-ingestion
+service: sp-search-ingestion
 
 provider:
   name: aws
