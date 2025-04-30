@@ -36,5 +36,6 @@ Payload
 
 **2. Retrieve all documents in an index**
 This endpoint retrieves all documents from a specified Elasticsearch index. It supports querying via the index query parameter.
+
 URL - http://localhost:3000/?index=customer-222
 Method - GET
