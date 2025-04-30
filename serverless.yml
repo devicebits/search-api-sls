@@ -1,0 +1,29 @@
+service: search-ingestion
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  timeout: 900
+  environment:
+    DATABASE_HOST: YOUR_DATABASE_HOST
+    DATABASE_USER: YOUR_DATABASE_USER
+    DATABASE_PASSWORD: YOUR_DATABASE_PASSWORD
+    DATABASE_NAME: YOUR_DATABASE_NAME
+    ELASTICSEARCH_ENDPOINT: YOUR_ES_ENDPOINT
+
+functions:
+  ingest:
+    handler: src/handlers/ingestionHandler.ingest
+    events:
+      - httpApi:
+          path: /create
+          method: post
+  getAllDocument:
+    handler: src/handlers/getAllDocumentsHandler.getAllDocuments
+    events:
+      - httpApi:
+          path: /
+          method: get
+
+plugins:
+  - serverless-offline
