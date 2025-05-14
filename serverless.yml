@@ -3,7 +3,6 @@ service: search-api-sls
 provider:
   name: aws
   runtime: nodejs18.x
-  timeout: 900
   environment:
     DATABASE_HOST: YOUR_DATABASE_HOST
     DATABASE_USER: YOUR_DATABASE_USER
