@@ -1,5 +1,5 @@
 const { getDbData } = require('../utils/dbQueries');
-const  ElasticSearchClient  = require('../engines/ElasticSearch/elasticSearchClient');
+const ElasticSearchClient = require('../engines/ElasticSearch/elasticSearchClient');
 
 module.exports.index = async (event) => {
   try {
@@ -24,7 +24,7 @@ module.exports.index = async (event) => {
 
     return {
       statusCode: 200,
-      body: JSON.stringify({data }),
+      body: JSON.stringify({ data }),
     };
 
   } catch (err) {

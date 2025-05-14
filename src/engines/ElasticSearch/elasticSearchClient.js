@@ -10,7 +10,7 @@ class ElasticSearchClient {
     try {
       console.log("index", this.index);
       console.log("client =>", this.client);
-      const { body: exists } = await this.client.indices.exists({index: this.index})
+      const { body: exists } = await this.client.indices.exists({ index: this.index })
       console.log("exists =>", exists);
       if (!exists) {
         const result = await this.client.indices.create({
@@ -27,13 +27,13 @@ class ElasticSearchClient {
             }
           }
         });
-      } 
+      }
     } catch (error) {
       console.error(`Error creating index '${this.index}':`, error);
       throw error;
     }
   }
-  
+
 
   async updateIndex(settings = {}) {
     try {
@@ -65,18 +65,18 @@ class ElasticSearchClient {
         index: this.index,
         body: {
           query: {
-            match_all: {} 
+            match_all: {}
           },
-          size: 10000 
+          size: 10000
         }
-      });  
+      });
       return result.hits.hits;
     } catch (error) {
       console.error(`Error retrieving documents from index ${this.index}:`, error);
       throw error;
     }
   }
-  
+
 
   async createDocument(id, document) {
     try {

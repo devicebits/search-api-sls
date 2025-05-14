@@ -8,5 +8,5 @@ async function getDbData(customerId) {
 }
 
 module.exports = {
-    getDbData,
+  getDbData,
 };

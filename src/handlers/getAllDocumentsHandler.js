@@ -13,7 +13,7 @@ module.exports.index = async (event) => {
 
     const client = new ElasticSearchClient({
       node: process.env.ELASTICSEARCH_ENDPOINT,
-      index,  
+      index,
     });
 
     const documents = await client.getAllDocuments();
