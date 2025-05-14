@@ -1,6 +1,6 @@
 const ElasticSearchClient = require('../engines/ElasticSearch/elasticSearchClient');
 
-module.exports.getAllDocuments = async (event) => {
+module.exports.index = async (event) => {
   try {
     const { index } = event.queryStringParameters;
 

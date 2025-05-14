@@ -1,7 +1,7 @@
 const { getDbData } = require('../utils/dbQueries');
 const  ElasticSearchClient  = require('../engines/ElasticSearch/elasticSearchClient');
 
-module.exports.ingest = async (event) => {
+module.exports.index = async (event) => {
   try {
     const body = event.body ? JSON.parse(event.body) : event;
     const { searchEngine, customerId } = body;

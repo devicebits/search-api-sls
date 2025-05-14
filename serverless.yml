@@ -1,4 +1,4 @@
-service: sp-search-engine
+service: search-api-sls
 
 provider:
   name: aws
@@ -13,13 +13,19 @@ provider:
 
 functions:
   ingest:
-    handler: src/handlers/ingestionHandler.ingest
+    handler: src/handlers/ingestionHandler.index
     events:
       - httpApi:
           path: /create
           method: post
   getAllDocument:
-    handler: src/handlers/getAllDocumentsHandler.getAllDocuments
+    handler: src/handlers/getAllDocumentsHandler.index
+    events:
+      - httpApi:
+          path: /documents
+          method: get
+  healthCheck:
+    handler: src/handlers/healthCheck.index
     events:
       - httpApi:
           path: /
