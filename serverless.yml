@@ -3,12 +3,8 @@ service: search-api-sls
 provider:
   name: aws
   runtime: nodejs18.x
-  environment:
-    DATABASE_HOST: YOUR_DATABASE_HOST
-    DATABASE_USER: YOUR_DATABASE_USER
-    DATABASE_PASSWORD: YOUR_DATABASE_PASSWORD
-    DATABASE_NAME: YOUR_DATABASE_NAME
-    ELASTICSEARCH_ENDPOINT: YOUR_ES_ENDPOINT
+  stage: ${opt:stage, 'dev'}
+  environment: ${file(serverless.env.yml):${self:provider.stage}}
 
 functions:
   ingest:
@@ -29,6 +25,27 @@ functions:
       - httpApi:
           path: /
           method: get
+  triggerLogstashTask:
+    handler: src/handlers/triggerTask.handler
+    timeout: 30
+    environment:
+      CLUSTER_NAME: logstash-cluster
+      TASK_DEFINITION: logstash-task:3
+    events:
+      - http:
+          path: /trigger-task
+          method: post
+          cors: true
+  checkTaskStatus:
+    handler: src/handlers/checkStatus.handler
+    timeout: 30
+    environment:
+      CLUSTER_NAME: logstash-cluster
+    events:
+      - http:
+          path: /check-status/{taskArn}
+          method: get
+          cors: true
 
 plugins:
   - serverless-offline
