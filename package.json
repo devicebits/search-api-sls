@@ -10,6 +10,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-ecs": "^3.848.0",
+    "@aws-sdk/client-ssm": "^3.849.0",
     "@elastic/elasticsearch": "^8.17.1",
     "aws-sdk": "^2.1692.0",
     "dotenv": "^16.5.0",
