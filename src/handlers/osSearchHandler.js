@@ -9,13 +9,14 @@ const config = {
 const osClient = new OpenSearchClient(config);
 module.exports.index = async (event) => {
   try {
-    const { index, query, from, size } = event.queryStringParameters;
-    const updatedQuery = buildQuery(query);
+    const { index, query, from, size, langId } = event.queryStringParameters;
+    const updatedQuery = buildQuery(query, langId);
     const results = await osClient.search(index, updatedQuery, parseInt(from), parseInt(size));
 
     return {
       statusCode: 200,
       body: JSON.stringify(results),
+      // body: JSON.stringify(updatedQuery)
     };
   } catch (error) {
     return {

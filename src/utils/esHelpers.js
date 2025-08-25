@@ -2,7 +2,7 @@
 const luceneEscape = (str) =>
   str.replace(/([!\/\*\+&\|\(\)\[\]\{\}\^~\?:"])/g, '\\$1')
 
-function buildQuery(query) {
+function buildQuery(query, langId = null) {
   console.log("buildQuery triggered =>")
   query = query.replace(/\//g, ' ')
   const queryObject = {
@@ -18,7 +18,11 @@ function buildQuery(query) {
                       constant_score: {
                         filter: {
                           match: {
-                            classification_language_1: query
+                            [langId ? getLanguageCol(
+                              'classification',
+                              langId,
+                              true
+                            ) : 'classification_language_1']: query
                           }
                         },
                         boost: 3
@@ -28,7 +32,7 @@ function buildQuery(query) {
                       function_score: {
                         query: {
                           match_phrase: {
-                            heading_language_1: query
+                            [langId ? getLanguageCol('heading', langId, true) : 'heading_language_1']: query
                           }
                         },
                         boost: 2
@@ -45,7 +49,7 @@ function buildQuery(query) {
           {
             query_string: {
               query,
-              default_field: 'heading_language_1',
+              default_field: langId ? getLanguageCol('heading', langId, true) : 'heading_language_1',
               minimum_should_match: '95%',
               boost: 6
             }
@@ -53,7 +57,7 @@ function buildQuery(query) {
           {
             query_string: {
               query,
-              default_field: 'heading_language_1',
+              default_field: langId ? getLanguageCol('heading', langId, true) : 'heading_language_1',
               minimum_should_match: '2',
               boost: 4
             }
@@ -61,7 +65,7 @@ function buildQuery(query) {
           {
             query_string: {
               query,
-              default_field: 'heading_language_1',
+              default_field: langId ? getLanguageCol('heading', langId, true) : 'heading_language_1',
               boost: 2
             }
           }
@@ -69,7 +73,7 @@ function buildQuery(query) {
         must: [
           {
             match: {
-              all_content_language_1: {
+              [langId ? getLanguageCol('all_content', langId, true) : 'all_content_language_1']: {
                 query,
                 minimum_should_match: '3<-75% 9<-85%'
               }
@@ -85,27 +89,27 @@ function buildQuery(query) {
       }
     },
     stored_fields: [
-      'heading_language_1',
-      'description_language_1'
+      langId ? getLanguageCol('heading', langId, true) : 'heading_language_1',
+      langId ? getLanguageCol('description', langId, true) : 'description_language_1'
     ],
     collapse: { field: 'pk' },
-    highlight: buildHighlightQuery(query)
+    highlight: buildHighlightQuery(query, langId)
   }
 
   return queryObject
 }
 
-function buildHighlightQuery(query) {
+function buildHighlightQuery(query, langId = null) {
   return {
     fields: {
-      heading_language_1: {
+      [langId ? getLanguageCol('heading', langId, true) : 'heading_language_1']: {
         number_of_fragments: 0
       },
-      description_language_1: {
+      [langId ? getLanguageCol('description', langId, true) : 'description_language_1']: {
         highlight_query: {
           bool: {
             must: [
-              { match: { description_language_1: query } }
+              { match: { [langId ? getLanguageCol('description', langId, true) : 'description_language_1']: luceneEscape(query) } }
             ]
           }
         }
@@ -113,5 +117,13 @@ function buildHighlightQuery(query) {
     }
   }
 }
+
+function getLanguageCol(colName, langIndex = 1, longFormat = false) {
+  if (langIndex === 1 && longFormat === false) {
+    return colName
+  }
+  return `${colName}_language_${langIndex}`
+}
+
 
 module.exports = { buildQuery }
