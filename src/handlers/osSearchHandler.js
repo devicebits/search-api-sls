@@ -16,7 +16,6 @@ module.exports.index = async (event) => {
     return {
       statusCode: 200,
       body: JSON.stringify(results),
-      // body: JSON.stringify(updatedQuery)
     };
   } catch (error) {
     return {
