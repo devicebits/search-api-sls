@@ -12,6 +12,21 @@ provider:
     OPENSEARCH_HOST: YOUR_OPENSEARCH_HOST
     OPENSEARCH_PORT: YOUR_OPENSEARCH_PORT
     AWS_REGION: us-east-1
+    STAGE: ${self:custom.stage}
+  
+custom:
+  stage: ${opt:stage, 'dev'}
+  customDomain:
+    domainName: ${self:custom.domains.${self:custom.stage}}
+    basePath: ''
+    stage: ${self:custom.stage}
+    createRoute53Record: true
+    endpointType: 'regional'
+    apiType: HTTP
+    securityPolicy: tls_1_2
+  domains:
+    dev: search-staging.devicebits.com
+    prod: search.devicebits.com
 
 functions:
   ingest:
@@ -43,3 +58,4 @@ functions:
 
 plugins:
   - serverless-offline
+  - serverless-domain-manager

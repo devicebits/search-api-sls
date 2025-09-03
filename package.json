@@ -18,6 +18,7 @@
     "mysql2": "^3.14.1"
   },
   "devDependencies": {
+    "serverless-domain-manager": "^8.0.0",
     "serverless-offline": "^14.4.0"
   }
 }
