@@ -10,8 +10,13 @@ const osClient = new OpenSearchClient(config);
 module.exports.index = async (event) => {
   try {
     const { index, query, from, size, langId } = event.queryStringParameters;
+    if (!index) {
+        throw new Error('Index should be present');
+    }
     const updatedQuery = buildQuery(query, langId);
-    const results = await osClient.search(index, updatedQuery, parseInt(from), parseInt(size));
+    const parsedFrom = parseInt(from, 10) || 0;
+    const parsedSize = parseInt(size, 10) || 10;
+    const results = await osClient.search(index, updatedQuery, parsedFrom, parsedSize);
 
     return {
       statusCode: 200,

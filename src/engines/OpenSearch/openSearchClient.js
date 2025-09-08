@@ -72,9 +72,6 @@ class OpenSearchClient {
    */
   async search(indexName, query = {}, from, size) {
     try {
-      if (!indexName || typeof indexName !== 'string') {
-        throw new Error('Index name must be a valid string');
-      }
       const exists = await this.indexExists(indexName);
       if (!exists) {
         throw new Error(`Index "${indexName}" does not exist`);
@@ -90,8 +87,8 @@ class OpenSearchClient {
       });
 
       return {
-        results: response.body.hits.hits,
-        total: response.body.hits.total.value,
+        results: response?.body?.hits?.hits || [],
+        total: response?.body?.hits?.total?.value || 0,
         size,
         from
       };
