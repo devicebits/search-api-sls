@@ -9,6 +9,24 @@ provider:
     DATABASE_PASSWORD: YOUR_DATABASE_PASSWORD
     DATABASE_NAME: YOUR_DATABASE_NAME
     ELASTICSEARCH_ENDPOINT: YOUR_ES_ENDPOINT
+    OPENSEARCH_HOST: YOUR_OPENSEARCH_HOST
+    OPENSEARCH_PORT: YOUR_OPENSEARCH_PORT
+    AWS_REGION: us-east-1
+    STAGE: ${self:custom.stage}
+  
+custom:
+  stage: ${opt:stage, 'dev'}
+  customDomain:
+    domainName: ${self:custom.domains.${self:custom.stage}}
+    basePath: ''
+    stage: ${self:custom.stage}
+    createRoute53Record: true
+    endpointType: 'regional'
+    apiType: HTTP
+    securityPolicy: tls_1_2
+  domains:
+    dev: search-staging.devicebits.com
+    prod: search.devicebits.com
 
 functions:
   ingest:
@@ -19,6 +37,7 @@ functions:
           method: post
   getAllDocument:
     handler: src/handlers/getAllDocumentsHandler.index
+    timeout: 300
     events:
       - httpApi:
           path: /documents
@@ -29,6 +48,14 @@ functions:
       - httpApi:
           path: /
           method: get
+  osSearchHandler:
+    handler: src/handlers/osSearchHandler.index
+    timeout: 300
+    events:
+      - httpApi:
+          path: /osearch
+          method: get
 
 plugins:
   - serverless-offline
+  - serverless-domain-manager
