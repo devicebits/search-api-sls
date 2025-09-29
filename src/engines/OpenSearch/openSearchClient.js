@@ -21,7 +21,7 @@ class OpenSearchClient {
     this.protocol = config.protocol || 'https';
     this.timeout = config.timeout || 5000;
     this.username = config.username;
-    this.password = config. password;
+    this.password = config.password;
     this.client = this.createClient();
   }
 
@@ -35,7 +35,7 @@ class OpenSearchClient {
         password: this.password
       },
       ssl: {
-        rejectUnauthorized: false
+        rejectUnauthorized:  process.env.NODE_ENV === 'production' ? true : false
       }
     };
 

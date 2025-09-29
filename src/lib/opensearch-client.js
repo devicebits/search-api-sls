@@ -14,7 +14,9 @@ const getOpenSearchClient = () => {
     if (!config.host || !config.username || !config.password) {
       throw new Error('Missing required OpenSearch configuration in environment variables');
     }
-    console.log('Initializing OpenSearch Client:', config.host);
+     if (process.env.NODE_ENV !== 'production') {
+      console.log('Initializing OpenSearch Client:', config.host);
+    }
     osClientInstance = new OpenSearchClient(config);
   }
 
