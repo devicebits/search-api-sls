@@ -3,16 +3,8 @@ service: search-api-sls
 provider:
   name: aws
   runtime: nodejs18.x
-  environment:
-    DATABASE_HOST: YOUR_DATABASE_HOST
-    DATABASE_USER: YOUR_DATABASE_USER
-    DATABASE_PASSWORD: YOUR_DATABASE_PASSWORD
-    DATABASE_NAME: YOUR_DATABASE_NAME
-    ELASTICSEARCH_ENDPOINT: YOUR_ES_ENDPOINT
-    OPENSEARCH_HOST: YOUR_OPENSEARCH_HOST
-    OPENSEARCH_PORT: YOUR_OPENSEARCH_PORT
-    AWS_REGION: us-east-1
-    STAGE: ${self:custom.stage}
+  environment: ${file(serverless.env.yml):${self:custom.stage}}
+
   
 custom:
   stage: ${opt:stage, 'dev'}
