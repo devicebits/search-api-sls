@@ -58,9 +58,12 @@ module.exports.index = async (event) => {
      finalQuery.aggs = aggs; 
     }
 
-    const parsedFrom = parseInt(from, 10) || 0;
-    const parsedSize = parseInt(size, 10) || 10;
-    const results = await osClient.search(index, finalQuery, parsedFrom, parsedSize);
+    const results = await osClient.search(
+      index,
+      finalQuery,
+      parseInt(from, 10),
+      parseInt(size, 10)
+    );
 
     return {
       statusCode: 200,
