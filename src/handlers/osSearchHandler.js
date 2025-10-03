@@ -1,12 +1,8 @@
 const OpenSearchClient = require('../engines/OpenSearch/openSearchClient');
 const { buildQuery } = require('../utils/esHelpers');
+const { getOpenSearchClient } = require('../lib/opensearch-client');
 
-const config = {
-  host: process.env.OPENSEARCH_HOST,
-  port: parseInt(process.env.OPENSEARCH_PORT) || 443,
-  region: process.env.AWS_REGION || 'us-east-1',
-};
-const osClient = new OpenSearchClient(config);
+const osClient = getOpenSearchClient();
 module.exports.index = async (event) => {
   try {
     const { index, query, from, size, langId } = event.queryStringParameters;

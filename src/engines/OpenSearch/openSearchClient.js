@@ -20,20 +20,23 @@ class OpenSearchClient {
     this.service = config.service || (this.host.includes('aoss') ? 'aoss' : 'es');
     this.protocol = config.protocol || 'https';
     this.timeout = config.timeout || 5000;
+    this.username = config.username;
+    this.password = config.password;
     this.client = this.createClient();
   }
 
   createClient() {
-     const node = `${this.protocol}://${this.host}:${this.port}`;
-    
+    const node = `${this.protocol}://${this.host}:${this.port}`;
     const clientConfig = {
       node: node,
       requestTimeout: this.timeout,
-      ...AwsSigv4Signer({
-        region: this.region,
-        service: this.service,
-        getCredentials: () => defaultProvider()()
-      })
+      auth: {
+        username: this.username,
+        password: this.password
+      },
+      ssl: {
+        rejectUnauthorized:  process.env.NODE_ENV === 'production' ? true : false
+      }
     };
 
     return new Client(clientConfig);
@@ -46,8 +49,7 @@ class OpenSearchClient {
    */
   async indexExists(indexName) {
     try {
-      console.log("indexname =>", indexName);
-      if(!indexName) {
+      if (!indexName) {
         throw new Error('Index name should be present');
       }
       const response = await this.client.indices.exists({
@@ -55,8 +57,7 @@ class OpenSearchClient {
       });
       return response.body;
     } catch (error) {
-      console.error('Error checking index existence:', error);
-      throw error;
+      throw new Error(`OpenSearch operation failed: ${error.message ? error.message: error}`);
     }
   }
 
