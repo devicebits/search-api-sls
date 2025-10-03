@@ -119,7 +119,7 @@ function buildQuery(query, project = null, langId = null) {
           }
         ],
         filter: {
-          bool: project ? projectQueryFilters[project].bool : projectQueryFilters['acad'].bool
+          bool: (projectQueryFilters[project]?.bool) || projectQueryFilters['acad'].bool
         }
       }
     },

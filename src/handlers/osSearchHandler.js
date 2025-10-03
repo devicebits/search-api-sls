@@ -29,7 +29,7 @@ module.exports.index = async (event) => {
     const {query: builtQuery, ...rest} = buildQuery(query, project, langId);
 
     const mustClause = [
-      { ...builtQuery },
+      builtQuery
     ]
 
     if (filters && Object.keys(filters).length) {

@@ -98,7 +98,7 @@ class OpenSearchClient {
       if (response?.body?.aggregations) {
         results.aggs = Object.fromEntries(
           Object.entries(response.body.aggregations)
-            .filter(([_, aggValue]) => Array.isArray(aggValue?.buckets))
+            .filter(([aggName, aggValue]) => Array.isArray(aggValue?.buckets))
             .map(([aggName, aggValue]) => [aggName, aggValue.buckets])
         );
       }
