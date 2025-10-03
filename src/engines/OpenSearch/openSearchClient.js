@@ -71,7 +71,7 @@ class OpenSearchClient {
    * @param {number} from - Starting offset
    * @returns {Promise<Object>} Search results
    */
-  async search(indexName, query = {}, from, size) {
+  async search(indexName, query = {}, from = 0, size = 10) {
     try {
       const exists = await this.indexExists(indexName);
       if (!exists) {
@@ -80,6 +80,7 @@ class OpenSearchClient {
       const searchBody = {
         ...query
       };
+
       searchBody.from = from;
       searchBody.size = size;
       const response = await this.client.search({
@@ -87,12 +88,22 @@ class OpenSearchClient {
         body: searchBody,
       });
 
-      return {
+      const results = {
         results: response?.body?.hits?.hits || [],
         total: response?.body?.hits?.total?.value || 0,
         size,
         from
-      };
+      }
+
+      if (response?.body?.aggregations) {
+        results.aggs = Object.fromEntries(
+          Object.entries(response.body.aggregations)
+            .filter(([_, aggValue]) => Array.isArray(aggValue?.buckets))
+            .map(([aggName, aggValue]) => [aggName, aggValue.buckets])
+        );
+      }
+      
+      return results;
     } catch (error) {
       console.error('Error searching index:', error);
       throw error;

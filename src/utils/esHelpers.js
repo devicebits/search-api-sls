@@ -2,48 +2,87 @@
 const luceneEscape = (str) =>
   str.replace(/([!\/\*\+&\|\(\)\[\]\{\}\^~\?:"])/g, '\\$1')
 
-function buildQuery(query, langId = null) {
+const ACAD = 'acad';
+const CA = 'ca';
+
+const projectQueryFilters = {
+  [ACAD]: { // ==> for SelfService
+    bool: {
+      should: [],
+      must: [{ term: { language: 1 } }, { term: { deleted: 0 } }]
+    }
+  },
+  [CA]: { // ==> for AgentAI
+    bool: {  
+      must: [
+        { term: { deleted: 0 } },
+        {
+          bool: {
+            should: [
+              { term: { type: 'faq' } },
+              { term: { type: 'tutorial' } }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+
+function buildQuery(query, project = null, langId = null) {
   console.log("buildQuery triggered =>")
   query = query.replace(/\//g, ' ')
+
+  console.log("projectSpecificQueries[project] =>", project,  projectQueryFilters[project]);
+  const functionScoreQueries = {
+    function_score: {
+      query: {
+        bool: {
+          should: [
+            {
+              constant_score: {
+                filter: {
+                  match: {
+                    [langId ? getLanguageCol(
+                      'classification',
+                      langId,
+                      true
+                    ) : 'classification_language_1']: query
+                  }
+                },
+                boost: 3
+              }
+            },
+            {
+              function_score: {
+                query: {
+                  match_phrase: {
+                    [langId ? getLanguageCol('heading', langId, true) : 'heading_language_1']: query
+                  }
+                },
+                boost: 2
+              }
+            },
+            { match: { device: query } },
+          ]
+        }
+      },
+      boost: 12
+    }
+  }
+  
+  if (project === CA) { // used for agentai-web only
+    functionScoreQueries.function_score.query.bool.should.push(
+      { match: { name: query } } 
+    )
+  }
+
   const queryObject = {
     query: {
       bool: {
         should: [
           {
-            function_score: {
-              query: {
-                bool: {
-                  should: [
-                    {
-                      constant_score: {
-                        filter: {
-                          match: {
-                            [langId ? getLanguageCol(
-                              'classification',
-                              langId,
-                              true
-                            ) : 'classification_language_1']: query
-                          }
-                        },
-                        boost: 3
-                      }
-                    },
-                    {
-                      function_score: {
-                        query: {
-                          match_phrase: {
-                            [langId ? getLanguageCol('heading', langId, true) : 'heading_language_1']: query
-                          }
-                        },
-                        boost: 2
-                      }
-                    },
-                    { match: { device: query } }
-                  ]
-                }
-              },
-              boost: 12
-            }
+            ...functionScoreQueries
           },
           { term: { device: 'general' } },
           {
@@ -81,10 +120,7 @@ function buildQuery(query, langId = null) {
           }
         ],
         filter: {
-          bool: {
-            should: [],
-            must: [{ term: { language: 1 } }, { term: { deleted: 0 } }]
-          }
+          bool: project ? projectQueryFilters[project].bool : projectQueryFilters['acad'].bool
         }
       }
     },
@@ -93,20 +129,26 @@ function buildQuery(query, langId = null) {
       langId ? getLanguageCol('description', langId, true) : 'description_language_1'
     ],
     collapse: { field: 'pk' },
-    highlight: buildHighlightQuery(query, langId)
+    highlight: buildHighlightQuery(query, project, langId),
+    _source: { includes: ['*'], excludes: [] }
   }
 
   return queryObject
 }
 
-function buildHighlightQuery(query, langId = null) {
+function buildHighlightQuery(query, project = null,  langId = null) {
   return {
     fields: {
       [langId ? getLanguageCol('heading', langId, true) : 'heading_language_1']: {
         number_of_fragments: 0
       },
       [langId ? getLanguageCol('description', langId, true) : 'description_language_1']: {
-        highlight_query: {
+        highlight_query: project === CA ? {
+          query_string: {
+            fields: ['description_language_1'],
+            query: luceneEscape(query)
+          }
+        } : { 
           bool: {
             must: [
               { match: { [langId ? getLanguageCol('description', langId, true) : 'description_language_1']: luceneEscape(query) } }
