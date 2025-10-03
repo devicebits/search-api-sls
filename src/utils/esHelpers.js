@@ -33,7 +33,6 @@ function buildQuery(query, project = null, langId = null) {
   console.log("buildQuery triggered =>")
   query = query.replace(/\//g, ' ')
 
-  console.log("projectSpecificQueries[project] =>", project,  projectQueryFilters[project]);
   const functionScoreQueries = {
     function_score: {
       query: {
@@ -136,7 +135,7 @@ function buildQuery(query, project = null, langId = null) {
   return queryObject
 }
 
-function buildHighlightQuery(query, project = null,  langId = null) {
+function buildHighlightQuery(query, project = null, langId = null) {
   return {
     fields: {
       [langId ? getLanguageCol('heading', langId, true) : 'heading_language_1']: {

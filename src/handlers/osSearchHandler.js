@@ -26,10 +26,10 @@ module.exports.index = async (event) => {
     if (!index) {
       throw new Error('Index should be present');
     }
-    const {query: mainQuery, ...rest} = buildQuery(query, project, langId);
+    const {query: builtQuery, ...rest} = buildQuery(query, project, langId);
 
     const mustClause = [
-      { ...mainQuery },
+      { ...builtQuery },
     ]
 
     if (filters && Object.keys(filters).length) {
