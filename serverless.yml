@@ -46,7 +46,7 @@ functions:
     events:
       - httpApi:
           path: /osearch
-          method: get
+          method: post
 
 plugins:
   - serverless-offline

@@ -43,3 +43,94 @@ This endpoint retrieves all documents from a specified Elasticsearch index. It s
 URL - http://localhost:3000/?index=customer-222
 
 Method - GET
+
+**3. Search documents using OpenSearch**
+
+This endpoint allows you to perform advanced search queries on an OpenSearch index. You can specify the index, query, filters, aggregations, pagination, and language options in the request body. The handler builds a query using the provided parameters and returns the search results from OpenSearch.
+
+URL - http://localhost:3000/osearch
+
+Method - POST
+
+Payload example:
+
+```
+{
+  "index": "osindex-docomopacificca",
+  "project": "ca",
+  "query": "Setting up Static IP (Router Side)",
+  "filters": {
+    "manufacturer": "Samsung" // phone_type, model, etc. (optional)
+  },
+  "aggs": {
+    "manufacturer": { // can be any name
+      "terms": {
+        "field": "manufacturer",
+        "size": 100,
+        "order": {
+          "_count": "desc"
+        }
+      }
+    },
+    "phone_type": { // can be any name
+      "terms": {
+        "field": "phone_type",
+        "size": 100,
+        "order": {
+          "_count": "desc"
+        }
+      }
+    },
+    "model": { // can be any name
+      "terms": {
+        "field": "model",
+        "size": 100,
+        "order": {
+          "_count": "desc"
+        }
+      }
+    }
+  },
+  "from": 0,
+  "size": 10
+}
+```
+
+**Note:**
+- The `filters` and `aggs` fields are optional. You can use any field names as keys in these objects, as long as the structure is followed.
+- The `query` field is a string.
+- If `from` and `size` are not passed, 0 and 10 will be used.
+- The rest of the fields are required.
+
+Response:
+
+```
+{
+  "results": [
+    {
+      "_index": "osindex-docomopacificca",
+      "_id": "abc123",
+      "_score": 1.23,
+      "_source": {
+        // document fields
+      }
+    },
+    // ...more results
+  ],
+  "total": 42,
+  "size": 10,
+  "from": 0,
+  "aggs": {
+    "manufacturer": [
+      { "key": "Samsung", "doc_count": 20 },
+      { "key": "Apple", "doc_count": 10 }
+    ],
+    "phone_type": [
+      { "key": "Smartphone", "doc_count": 25 }
+    ],
+    "model": [
+      { "key": "Galaxy S21", "doc_count": 8 }
+    ]
+  }
+}
+```
