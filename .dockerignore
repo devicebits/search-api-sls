@@ -1,0 +1,6 @@
+.git
+node_modules
+.serverless
+.env
+test
+mysql/data

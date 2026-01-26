@@ -1,0 +1,14 @@
+cluster.name: opensearch-cluster
+network.host: 0.0.0.0
+
+bootstrap.memory_lock: "true" # along with the memlock settings below, disables swapping
+
+cluster.routing.allocation.disk.threshold_enabled: true
+cluster.routing.allocation.disk.watermark.low: 93%
+cluster.routing.allocation.disk.watermark.high: 95%
+
+# Disable security plugin
+plugins.security.disabled: true
+
+# Advanced options
+rest.action.multi.allow_explicit_index: true

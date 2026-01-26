@@ -1,0 +1,13 @@
+server.name: opensearch-dashboards
+server.host: "0.0.0.0"
+server.port: 5601
+server.customResponseHeaders : { "Access-Control-Allow-Credentials" : "true" }
+
+# Configure OpenSearch connection
+opensearch.hosts: ["http://opensearch01:9200", "http://opensearch02:9200", "http://opensearch03:9200"]
+
+data_source.enabled: true
+workspace.enabled: true
+explore.enabled: true
+
+# Disable security

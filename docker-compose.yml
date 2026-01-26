@@ -1,0 +1,346 @@
+volumes:
+  opensearch-data1:
+  opensearch-data2:
+  opensearch-data3:
+  mysql:
+  esdata1:
+  kibanadata:
+  logstashdata01:
+
+networks:
+  search-api:
+    driver: bridge
+
+services:
+  serverless:
+    depends_on:
+      mysql:
+        condition: service_healthy
+      opensearch01:
+        condition: service_healthy
+      opensearch02:
+        condition: service_healthy
+      opensearch-dashboards:
+        condition: service_healthy
+      es01:
+        condition: service_healthy
+      kibana-es:
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: search-api-sls
+    ports:
+      - "${SLS_PORT:-3000}:3000"
+    networks:
+      - search-api
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - OPENSEARCH_PORT=${OPENSEARCH_PORT}
+      - OPENSEARCH_HOST=${OPENSEARCH_HOST}
+      - OPENSEARCH_MASTER_USERNAME=${OPENSEARCH_MASTER_USERNAME}
+      - OPENSEARCH_MASTER_PASSWORD=${OPENSEARCH_MASTER_PASSWORD}
+      - DATABASE_HOST=${DATABASE_HOST}
+      - DATABASE_USER=${DATABASE_USER}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - DATABASE_NAME=${DATABASE_NAME}
+      - ELASTICSEARCH_ENDPOINT=${ELASTICSEARCH_ENDPOINT}
+      - SERVERLESS_ACCESS_KEY=${SERVERLESS_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+    volumes:
+      - ./:/app
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DATABASE_PASSWORD}
+      - MYSQL_DATABASE=${DATABASE_NAME}
+      - MYSQL_USER=${DATABASE_USER}
+      - MYSQL_PASSWORD=${DATABASE_PASSWORD}
+      - MYSQL_USE_SSL=${MYSQL_USE_SSL}
+    ports:
+      - "${DATABASE_PORT}:3306"
+    volumes:
+      - ./mysql/data:/var/lib/mysql
+      - ./mysql/init-grants.sql:/docker-entrypoint-initdb.d/init-grants.sql # initialize admin privileges
+    networks:
+      - search-api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u${DATABASE_USER} -p${DATABASE_PASSWORD}"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+
+  opensearch01:
+    build:
+      context: ./opensearch
+      dockerfile: Dockerfile
+    image: opensearchproject/opensearch:3
+    container_name: opensearch01
+    environment:
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch01
+      - discovery.seed_hosts=opensearch01,opensearch02,opensearch03
+      - cluster.initial_cluster_manager_nodes=opensearch01,opensearch02,opensearch03
+      - bootstrap.memory_lock=true  # along with the memlock settings below, disables swapping
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m  # minimum and maximum Java heap size, recommend setting both to 50% of system RAM
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_MASTER_PASSWORD}  # Sets the demo admin user password when using demo configuration, required for OpenSearch 2.12 and higher
+      - DISABLE_INSTALL_DEMO_CONFIG=true  # Set to true to disable the installation of the demo configuration
+      - DISABLE_SECURITY_PLUGIN=true
+      - network.host=0.0.0.0
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536  # maximum number of open files for the OpenSearch user, set to at least 65536 on modern systems
+        hard: 65536
+    volumes:
+      - opensearch-data1:/usr/share/opensearch/data
+      - ./opensearch/opensearch.yml:/usr/share/opensearch/config/opensearch.yml
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "1"
+    restart: unless-stopped
+    ports:
+      - "${OPENSEARCH_01_PORT:-9201}:9200"
+      - 9600:9600  # OpenSearch Performance Analyzer port
+    networks:
+      - search-api
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+  opensearch02:
+    build:
+      context: ./opensearch
+      dockerfile: Dockerfile
+    image: opensearchproject/opensearch:3
+    container_name: opensearch02
+    environment:
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch02
+      - discovery.seed_hosts=opensearch01,opensearch02,opensearch03
+      - cluster.initial_cluster_manager_nodes=opensearch01,opensearch02,opensearch03
+      - bootstrap.memory_lock=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_MASTER_PASSWORD}
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - DISABLE_SECURITY_PLUGIN=true
+      - network.host=0.0.0.0
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch-data2:/usr/share/opensearch/data
+      - ./opensearch/opensearch.yml:/usr/share/opensearch/config/opensearch.yml
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "1"
+    restart: unless-stopped
+    ports:
+      - "${OPENSEARCH_02_PORT:-9202}:9200"
+    networks:
+      - search-api
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+  opensearch03:
+    build:
+      context: ./opensearch
+      dockerfile: Dockerfile
+    image: opensearchproject/opensearch:3
+    container_name: opensearch03
+    environment:
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch03
+      - discovery.seed_hosts=opensearch01,opensearch02,opensearch03
+      - cluster.initial_cluster_manager_nodes=opensearch01,opensearch02,opensearch03
+      - bootstrap.memory_lock=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_MASTER_PASSWORD}
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - DISABLE_SECURITY_PLUGIN=true
+      - network.host=0.0.0.0
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch-data3:/usr/share/opensearch/data
+      - ./opensearch/opensearch.yml:/usr/share/opensearch/config/opensearch.yml
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "1"
+    restart: unless-stopped
+    ports:
+      - "${OPENSEARCH_03_PORT:-9203}:9200"
+    networks:
+      - search-api
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+  opensearch-dashboards:
+    depends_on:
+      - opensearch01
+      - opensearch02
+      - opensearch03
+    image: opensearchproject/opensearch-dashboards:3 # Make sure the version of opensearch-dashboards matches the version of opensearch installed on other nodes
+    container_name: opensearch-dashboards
+    ports:
+      - "${OPENSEARCH_DASHBOARD_PORT:-5601}:5601"
+    expose:
+      - '5601'
+    environment:
+      - OPENSEARCH_HOSTS=["http://opensearch01:9200","http://opensearch02:9200","http://opensearch03:9200"] # OpenSearch nodes that OpenSearch Dashboards will query
+      - OPENSEARCH_USERNAME=${OPENSEARCH_MASTER_USERNAME}
+      - OPENSEARCH_PASSWORD=${OPENSEARCH_MASTER_PASSWORD}
+      - OPENSEARCH_DASHBOARD_PASSWORD=${OPENSEARCH_MASTER_PASSWORD}
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+    volumes:
+      - ./opensearch/opensearch_dashboards.yml:/usr/share/opensearch-dashboards/config/opensearch_dashboards.yml
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+    networks:
+      - search-api
+
+  es01:
+    build:
+      context: ./elasticsearch
+      dockerfile: Dockerfile
+    image: search-api-elasticsearch:${STACK_VERSION}
+    container_name: es01
+    hostname: es01
+    labels:
+      co.elastic.logs/module: elasticsearch
+    volumes:
+      - esdata1:/usr/share/elasticsearch/data
+    ports:
+      - ${ES_PORT:-8201}:9200 # match internal port Elasticsearch endpoint in .env, avoid overlapping to OpenSearch ports
+      - 8300:9300
+    networks:
+      - search-api
+    environment:
+      - node.name=es01
+      - cluster.name=${ES_CLUSTER_NAME}
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - ES_JAVA_OPTS=-Xms${ES_HEAP_SIZE} -Xmx${ES_HEAP_SIZE}
+      - bootstrap.memory_lock=true
+      - xpack.monitoring.enabled=false
+      - xpack.ml.enabled=false
+      - xpack.watcher.enabled=false
+      - xpack.security.enabled=false
+      - xpack.license.self_generated.type=${LICENSE}
+    cap_add:
+      - IPC_LOCK
+    mem_limit: ${ES_MEM_LIMIT}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+  kibana-es:
+    depends_on:
+      es01:
+        condition: service_healthy
+    image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
+    container_name: kibana-es
+    labels:
+      co.elastic.logs/module: kibana
+    volumes:
+      - kibanadata:/usr/share/kibana/data
+      - ./elasticsearch/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+    ports:
+      - ${KIBANA_PORT_ES_01:-5602}:5602 # match exposed port to kibana.yml [server.port]
+    environment:
+      - SERVERNAME=kibana
+      - ELASTICSEARCH_HOSTS=http://es01:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD}
+      - xpack.security.enabled=false
+      - xpack.license.self_generated.type=${LICENSE}
+    mem_limit: ${KB_MEM_LIMIT}
+    restart: unless-stopped
+    networks:
+      - search-api
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5602/api/status || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+  logstash:
+    depends_on:
+      serverless:
+        condition: service_healthy
+    image: docker.elastic.co/logstash/logstash:${STACK_VERSION}
+    container_name: logstash
+    labels:
+      co.elastic.logs/module: logstash
+    user: root
+    volumes:
+      - logstashdata01:/usr/share/logstash/data
+      - ./logs:/usr/share/logstash/ingest_data
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro,Z
+    environment:
+      - http.port=9600
+      - xpack.monitoring.enabled=false
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
+      - ELASTICSEARCH_URL=${ELASTICSEARCH_ENDPOINT}
+      - ELASTICSEARCH_HOSTS=${ELASTICSEARCH_ENDPOINT}
+    mem_limit: ${LS_MEM_LIMIT}
+    restart: unless-stopped
+    ports:
+      - "${LOGSTASH_PORT_API}:9600"
+    networks:
+      - search-api
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9600 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5

@@ -17,6 +17,25 @@ This is the repository that manages all the calls to various search engines like
 ```
 4. Run `sls offline`
 
+### Running with Docker
+
+1. Login to [Serverless](https://app.serverless.com/) for `SERVERLESS_ACCESS_KEY`
+2. If running in Linux/WSL:
+  ```bash
+  sudo swapoff -a
+  sudo sysctl -w vm.max_map_count=262144
+  ```
+
+2. Build the Docker image:
+  ```bash
+  make compose-build
+  ```
+
+3. Run the Docker container:
+  ```bash
+  make compose-up
+  ```
+
 ### Endpoints
 
 **1. Create an index and ingest data**
@@ -27,7 +46,7 @@ URL - http://localhost:3000/create
 
 Method - POST
 
-Payload 
+Payload
 
 ```
   {
