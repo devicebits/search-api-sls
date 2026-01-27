@@ -23,15 +23,7 @@ module.exports.index = async (event) => {
   }
   const { index, query, project, filters, aggs, from, size, langId } = body;
   logApiEvent({ type: 'request', handler: 'osSearchHandler', event: body });
-  logApiEvent({
-    type: 'search_query',
-    handler: 'osSearchHandler',
-    query,
-    filters,
-    aggs,
-    user: event.requestContext?.authorizer?.principalId || 'anonymous',
-    timestamp: new Date().toISOString()
-  });
+
   try {
     if (!index) {
       throw new Error('Index should be present');
@@ -71,6 +63,14 @@ module.exports.index = async (event) => {
     // Add from/size for pagination
     if (typeof from !== 'undefined') finalQuery.from = parseInt(from, 10) || 0;
     if (typeof size !== 'undefined') finalQuery.size = parseInt(size, 10) || 10;
+
+    logApiEvent({
+      type: 'search_query',
+      handler: 'osSearchHandler',
+      query: finalQuery,
+      user: event.requestContext?.authorizer?.principalId || 'anonymous',
+      timestamp: new Date().toISOString()
+    });
     
     // Query the OpenSearch client
     const results = await osClient.search(

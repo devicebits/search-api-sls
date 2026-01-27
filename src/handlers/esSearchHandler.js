@@ -20,18 +20,10 @@ module.exports.index = async (event) => {
   }
   const { index, query, project, filters, aggs, from, size, langId } = body;
   logApiEvent({ type: 'request', handler: 'esSearchHandler', event: body });
-  logApiEvent({
-    type: 'search_query',
-    handler: 'esSearchHandler',
-    query,
-    filters,
-    aggs,
-    user: event.requestContext?.authorizer?.principalId || 'anonymous',
-    timestamp: new Date().toISOString()
-  });
   try {
     // Build the base query using buildQuery helper
     const { query: builtQuery, ...rest } = buildQuery(query, project, langId);
+
     // Compose must/filter clauses
     const mustClause = [
       builtQuery
@@ -42,6 +34,7 @@ module.exports.index = async (event) => {
       }));
       mustClause.push(...terms);
     }
+
     // Compose the final query object
     const finalQuery = {
       query: {
@@ -57,19 +50,31 @@ module.exports.index = async (event) => {
       },
       ...rest
     };
+
     // Add aggs if present
     if (aggs && Object.keys(aggs).length) {
       finalQuery.aggs = aggs;
     }
+
     // Add from/size for pagination
     if (typeof from !== 'undefined') finalQuery.from = parseInt(from, 10) || 0;
     if (typeof size !== 'undefined') finalQuery.size = parseInt(size, 10) || 10;
+
+    logApiEvent({
+      type: 'search_query',
+      handler: 'esSearchHandler',
+      query: finalQuery,
+      user: event.requestContext?.authorizer?.principalId || 'anonymous',
+      timestamp: new Date().toISOString()
+    });
+
     const esClient = new ElasticSearchClient({
       node: process.env.ELASTICSEARCH_ENDPOINT,
       index,
     });
     // Query the ElasticSearch client
     const results = await esClient.search(finalQuery);
+
     logApiEvent({
       type: 'response',
       handler: 'esSearchHandler',
@@ -77,6 +82,7 @@ module.exports.index = async (event) => {
       duration: Date.now() - start,
       response: results
     });
+
     return {
       statusCode: 200,
       body: JSON.stringify(results),
