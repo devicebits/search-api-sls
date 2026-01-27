@@ -603,21 +603,21 @@ curl -s -X GET "http://${OS_HOST}/${INDEX_NAME}/_search?pretty" -H 'Content-Type
   "aggs": {
     "manufacturer": {
       "terms": {
-        "field": "manufacturer",
+        "field": "manufacturer.keyword",
         "size": 100,
         "order": { "_count": "desc" }
       }
     },
     "phone_type": {
       "terms": {
-        "field": "phone_type",
+        "field": "phone_type.keyword",
         "size": 100,
         "order": { "_count": "desc" }
       }
     },
     "model": {
       "terms": {
-        "field": "model",
+        "field": "model.keyword",
         "size": 100,
         "order": { "_count": "desc" }
       }
