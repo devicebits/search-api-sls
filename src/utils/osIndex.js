@@ -509,23 +509,23 @@ const indexBody = {
     }
 }
 
-async function createIndex() {
+async function createIndex(index, upsert = true) {
     const client = getOpenSearchClient();
     try {
-        const exists = await client.indexExists(indexName);
-        if (exists) {
-            console.log(`Index '${indexName}' already exists. Deleting...`);
-            await client.client.indices.delete({ index: indexName });
-            console.log(`Deleted index '${indexName}'.`);
+        const exists = await client.indexExists(index);
+        if (exists && upsert) {
+            console.log(`Index '${index}' already exists. Deleting...`);
+            await client.client.indices.delete({ index: index });
+            console.log(`Deleted index '${index}'.`);
         }
         await client.client.indices.create({
-            index: indexName,
+            index: index,
             body: indexBody
         });
-        console.log(`Created index '${indexName}' with mapping.`);
+        console.log(`Created index '${index}' with mapping.`);
     } catch (err) {
         console.error('Error creating index:', err);
-        process.exit(1);
+        throw err;
     }
 }
 
@@ -614,5 +614,11 @@ module.exports = {
 
 // If run directly, create the index
 if (require.main === module) {
-    createIndex();
+    createIndex(indexName).then(() => {
+        console.log('Index setup complete.');
+        process.exit(0);
+    }).catch(err => {
+        console.error('Error setting up index:', err);
+        process.exit(1);
+    });
 }

@@ -26,14 +26,30 @@ This is the repository that manages all the calls to various search engines like
   sudo sysctl -w vm.max_map_count=262144
   ```
 
-2. Build the Docker image:
+3. Copy `.env.example` to `.env` and update the environment variables as needed
+  ```bash
+  cp .env.example .env
+  ```
+
+4. Build the Docker image:
   ```bash
   make compose-build
   ```
 
-3. Run the Docker container:
+5. Run the Docker container:
   ```bash
   make compose-up
+  ```
+
+6. Import MySQL dump (if needed):
+  ```bash
+  # Assuming you have SQL dump files named `temporary_*.sql` in a local `Dump` directory and dumped db script is using db name matching `DATABASE_NAME`
+  docker cp ./Dump mysql:/Dump
+  docker exec -it mysql bash
+  cd /Dump
+  DATABASE_NAME=your_database_name
+  DATABASE_PASSWORD=your_database_password
+  for f in temporary_*.sql; do mysql -u admin -p"$DATABASE_PASSWORD" $DATABASE_NAME < "$f"; done
   ```
 
 ### Endpoints

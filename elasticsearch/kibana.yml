@@ -1,13 +1,14 @@
-
 # Allow connections from remote users
 server.host: "0.0.0.0"
 server.port: 5602
+server.name: "${SERVERNAME}"
 
 # The URLs of the Elasticsearch instances to use for all your queries (match docker-compose service name and SSL)
 # Old way (<= 6.5)
-elasticsearch.url: ${ELASTICSEARCH_HOSTS}
+elasticsearch.url: "${ELASTICSEARCH_URL}"
 # # Correct way (>= 6.6)
-# elasticsearch.hosts: ["https://es01:9200"]
+# elasticsearch.hosts: ["https://elasticsearch01:9200"]
+elasticsearch.preserveHost: true
 
 # the username and password that the Kibana server uses to perform maintenance on the Kibana index at startup
 elasticsearch.username: ${ELASTICSEARCH_USERNAME}
@@ -18,6 +19,9 @@ server.ssl.enabled: false
 
 # telemetry.enabled: false
 
+xpack.security.enabled: true
+xpack.security.encryptionKey: ${KIBANA_ENCRYPTION_KEY}
+
 # Disable ML, Graph and other paid features (enable according to RAM available)
 xpack.monitoring.enabled: false
 xpack.apm.enabled: false
@@ -25,4 +29,3 @@ xpack.ml.enabled: false
 xpack.graph.enabled: false
 xpack.reporting.enabled: false
 xpack.watcher.enabled: false
-xpack.security.enabled: false

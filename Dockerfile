@@ -8,8 +8,10 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install --ignore-scripts && npm cache clean --force;
 
-# Copy source code
-COPY . .
+# Copy essential serverless files
+COPY src ./src
+COPY serverless.yml ./
+COPY serverless.env.yml ./
 
 # ---- Production Stage ----
 FROM node:18-alpine AS production
@@ -42,4 +44,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
 
 # Start the serverless offline server
-CMD ["serverless", "offline", "start", "--host", "0.0.0.0"]
+CMD ["npm", "run", "start:offline"]

@@ -5,6 +5,7 @@
   "main": "handler.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "start:offline": "sls offline start --host 0.0.0.0",
     "os-search-test": "node ./test/os-search-api.test.js",
     "os-ingestion-test": "node ./test/os-ingestion-api.test.js",
     "es-search-test": "node ./test/es-search-api.test.js",

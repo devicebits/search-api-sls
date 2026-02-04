@@ -333,24 +333,24 @@ const indexBody = {
     }
 }
 
-async function createIndex() {
+async function createIndex(index, upsert = true) {
     try {
         const client = new ElasticSearchClient({
             node: process.env.ELASTICSEARCH_ENDPOINT,
-            index: indexName
+            index: index
         });
 
         const exists = await client.indexExists();
-        if (exists) {
-            console.log(`Index '${indexName}' already exists. Deleting...`);
+        if (exists && upsert) {
+            console.log(`Index '${index}' already exists. Deleting...`);
             await client.dropIndex();
-            console.log(`Deleted index '${indexName}'.`);
+            console.log(`Deleted index '${index}'.`);
         }
         await client.createIndex(indexBody);
-        console.log(`Created index '${indexName}' with mapping.`);
+        console.log(`Created index '${index}' with mapping.`);
     } catch (err) {
         console.error('Error creating index:', err);
-        process.exit(1);
+        throw err;
     }
 }
 
@@ -454,5 +454,11 @@ module.exports = {
 
 // If run directly, create the index
 if (require.main === module) {
-    createIndex();
+    createIndex(indexName).then(() => {
+        console.log('Index setup complete.');
+        process.exit(0);
+    }).catch(err => {
+        console.error('Error setting up index:', err);
+        process.exit(1);
+    });
 }

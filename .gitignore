@@ -4,3 +4,4 @@ node_modules
 certs
 logs/*.log
 mysql/data
+/Dump

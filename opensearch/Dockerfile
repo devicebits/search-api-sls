@@ -1,5 +1,8 @@
 FROM opensearchproject/opensearch:3
 
+RUN /usr/share/opensearch/bin/opensearch-plugin install --batch repository-s3
+RUN /usr/share/opensearch/bin/opensearch-plugin install --batch workload-management
+
 # Copy custom analyzer dictionary files (TXT-DICTIONARY packages), using elasticsearch config dictory as reference as there is no s3 urls associated packages with production OpenSearch domain
 # These files are copied to the config root so production mappings work without path changes
 COPY config/device_stopwords.txt /usr/share/opensearch/config/

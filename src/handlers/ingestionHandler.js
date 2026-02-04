@@ -1,5 +1,5 @@
-const { ingestData: esIngestData } = require('../utils/esIndex');
-const { ingestData: osIngestData } = require('../utils/osIndex');
+const { ingestData: esIngestData, createIndex: createEsIndex } = require('../utils/esIndex');
+const { ingestData: osIngestData, createIndex: createOsIndex } = require('../utils/osIndex');
 
 module.exports.index = async (event) => {
   try {
@@ -8,6 +8,7 @@ module.exports.index = async (event) => {
 
     switch (searchEngine?.toLowerCase()) {
       case 'elasticsearch': {
+        await createEsIndex(index || `customer-${customerId}`, false);
         const { success, failed, errors } = await esIngestData({ index: index || `customer-${customerId}`, customer: customerId });
         return {
           statusCode: 200,
@@ -16,6 +17,7 @@ module.exports.index = async (event) => {
       }
 
       case 'opensearch': {
+        await createOsIndex(index || `customer-${customerId}`, false);
         const { success, failed, errors } = await osIngestData({ index: index || `customer-${customerId}`, customer: customerId });
         return {
           statusCode: 200,

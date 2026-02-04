@@ -1,7 +1,5 @@
 volumes:
   opensearch-data1:
-  opensearch-data2:
-  opensearch-data3:
   mysql:
   esdata1:
   kibanadata:
@@ -12,17 +10,15 @@ networks:
     driver: bridge
 
 services:
-  serverless:
+  search-api-sls:
     depends_on:
       mysql:
         condition: service_healthy
       opensearch01:
         condition: service_healthy
-      opensearch02:
-        condition: service_healthy
       opensearch-dashboards:
         condition: service_healthy
-      es01:
+      elasticsearch01:
         condition: service_healthy
       kibana-es:
         condition: service_healthy
@@ -48,7 +44,6 @@ services:
       - SERVERLESS_ACCESS_KEY=${SERVERLESS_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION}
     volumes:
-      - ./:/app
       - ./logs:/app/logs
     restart: unless-stopped
     healthcheck:
@@ -89,13 +84,13 @@ services:
     environment:
       - cluster.name=opensearch-cluster
       - node.name=opensearch01
-      - discovery.seed_hosts=opensearch01,opensearch02,opensearch03
-      - cluster.initial_cluster_manager_nodes=opensearch01,opensearch02,opensearch03
+      - discovery.seed_hosts=opensearch01
+      - cluster.initial_master_nodes=opensearch01
+      - cluster.initial_cluster_manager_nodes=opensearch01
       - bootstrap.memory_lock=true  # along with the memlock settings below, disables swapping
       - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m  # minimum and maximum Java heap size, recommend setting both to 50% of system RAM
       - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_MASTER_PASSWORD}  # Sets the demo admin user password when using demo configuration, required for OpenSearch 2.12 and higher
       - DISABLE_INSTALL_DEMO_CONFIG=true  # Set to true to disable the installation of the demo configuration
-      - DISABLE_SECURITY_PLUGIN=true
       - network.host=0.0.0.0
     ulimits:
       memlock:
@@ -124,97 +119,9 @@ services:
       timeout: 10s
       retries: 120
 
-  opensearch02:
-    build:
-      context: ./opensearch
-      dockerfile: Dockerfile
-    image: opensearchproject/opensearch:3
-    container_name: opensearch02
-    environment:
-      - cluster.name=opensearch-cluster
-      - node.name=opensearch02
-      - discovery.seed_hosts=opensearch01,opensearch02,opensearch03
-      - cluster.initial_cluster_manager_nodes=opensearch01,opensearch02,opensearch03
-      - bootstrap.memory_lock=true
-      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
-      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_MASTER_PASSWORD}
-      - DISABLE_INSTALL_DEMO_CONFIG=true
-      - DISABLE_SECURITY_PLUGIN=true
-      - network.host=0.0.0.0
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-      nofile:
-        soft: 65536
-        hard: 65536
-    volumes:
-      - opensearch-data2:/usr/share/opensearch/data
-      - ./opensearch/opensearch.yml:/usr/share/opensearch/config/opensearch.yml
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        max-file: "1"
-    restart: unless-stopped
-    ports:
-      - "${OPENSEARCH_02_PORT:-9202}:9200"
-    networks:
-      - search-api
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200 || exit 1"]
-      interval: 10s
-      timeout: 10s
-      retries: 120
-
-  opensearch03:
-    build:
-      context: ./opensearch
-      dockerfile: Dockerfile
-    image: opensearchproject/opensearch:3
-    container_name: opensearch03
-    environment:
-      - cluster.name=opensearch-cluster
-      - node.name=opensearch03
-      - discovery.seed_hosts=opensearch01,opensearch02,opensearch03
-      - cluster.initial_cluster_manager_nodes=opensearch01,opensearch02,opensearch03
-      - bootstrap.memory_lock=true
-      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
-      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_MASTER_PASSWORD}
-      - DISABLE_INSTALL_DEMO_CONFIG=true
-      - DISABLE_SECURITY_PLUGIN=true
-      - network.host=0.0.0.0
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-      nofile:
-        soft: 65536
-        hard: 65536
-    volumes:
-      - opensearch-data3:/usr/share/opensearch/data
-      - ./opensearch/opensearch.yml:/usr/share/opensearch/config/opensearch.yml
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        max-file: "1"
-    restart: unless-stopped
-    ports:
-      - "${OPENSEARCH_03_PORT:-9203}:9200"
-    networks:
-      - search-api
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200 || exit 1"]
-      interval: 10s
-      timeout: 10s
-      retries: 120
-
   opensearch-dashboards:
     depends_on:
       - opensearch01
-      - opensearch02
-      - opensearch03
     image: opensearchproject/opensearch-dashboards:3 # Make sure the version of opensearch-dashboards matches the version of opensearch installed on other nodes
     container_name: opensearch-dashboards
     ports:
@@ -222,10 +129,11 @@ services:
     expose:
       - '5601'
     environment:
-      - OPENSEARCH_HOSTS=["http://opensearch01:9200","http://opensearch02:9200","http://opensearch03:9200"] # OpenSearch nodes that OpenSearch Dashboards will query
+      - SERVERNAME=opensearch-dashboards
+      - OPENSEARCH_HOSTS=["http://opensearch01:9200"] # OpenSearch nodes that OpenSearch Dashboards will query
       - OPENSEARCH_USERNAME=${OPENSEARCH_MASTER_USERNAME}
       - OPENSEARCH_PASSWORD=${OPENSEARCH_MASTER_PASSWORD}
-      - OPENSEARCH_DASHBOARD_PASSWORD=${OPENSEARCH_MASTER_PASSWORD}
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_MASTER_PASSWORD}
       - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
     volumes:
       - ./opensearch/opensearch_dashboards.yml:/usr/share/opensearch-dashboards/config/opensearch_dashboards.yml
@@ -238,13 +146,15 @@ services:
     networks:
       - search-api
 
-  es01:
+  elasticsearch01:
     build:
       context: ./elasticsearch
       dockerfile: Dockerfile
-    image: search-api-elasticsearch:${STACK_VERSION}
-    container_name: es01
-    hostname: es01
+      args:
+        - STACK_VERSION=${STACK_VERSION}
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    container_name: elasticsearch01
+    hostname: elasticsearch01
     labels:
       co.elastic.logs/module: elasticsearch
     volumes:
@@ -255,9 +165,10 @@ services:
     networks:
       - search-api
     environment:
-      - node.name=es01
+      - node.name=elasticsearch01
       - cluster.name=${ES_CLUSTER_NAME}
       - discovery.type=single-node
+      - ELASTIC_USERNAME=${ELASTIC_USERNAME}
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - ES_JAVA_OPTS=-Xms${ES_HEAP_SIZE} -Xmx${ES_HEAP_SIZE}
       - bootstrap.memory_lock=true
@@ -285,7 +196,7 @@ services:
 
   kibana-es:
     depends_on:
-      es01:
+      elasticsearch01:
         condition: service_healthy
     image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
     container_name: kibana-es
@@ -298,10 +209,11 @@ services:
       - ${KIBANA_PORT_ES_01:-5602}:5602 # match exposed port to kibana.yml [server.port]
     environment:
       - SERVERNAME=kibana
-      - ELASTICSEARCH_HOSTS=http://es01:9200
-      - ELASTICSEARCH_USERNAME=kibana_system
-      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD}
-      - xpack.security.enabled=false
+      - ELASTICSEARCH_URL=http://elasticsearch01:9200
+      - ELASTICSEARCH_HOSTS=http://elasticsearch01:9200
+      - ELASTICSEARCH_USERNAME=${KIBANA_USERNAME}
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD} # Must match ELASTIC_PASSWORD of elasticsearch01
+      - KIBANA_ENCRYPTION_KEY=${KIBANA_ENCRYPTION_KEY}
       - xpack.license.self_generated.type=${LICENSE}
     mem_limit: ${KB_MEM_LIMIT}
     restart: unless-stopped
@@ -315,7 +227,9 @@ services:
 
   logstash:
     depends_on:
-      serverless:
+      search-api-sls:
+        condition: service_healthy
+      elasticsearch01:
         condition: service_healthy
     image: docker.elastic.co/logstash/logstash:${STACK_VERSION}
     container_name: logstash
@@ -329,7 +243,7 @@ services:
     environment:
       - http.port=9600
       - xpack.monitoring.enabled=false
-      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_USERNAME=${ELASTIC_USERNAME}
       - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
       - ELASTICSEARCH_URL=${ELASTICSEARCH_ENDPOINT}
       - ELASTICSEARCH_HOSTS=${ELASTICSEARCH_ENDPOINT}
