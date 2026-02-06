@@ -6,10 +6,10 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start:offline": "sls offline start --host 0.0.0.0",
-    "os-search-test": "node ./test/os-search-api.test.js",
-    "os-ingestion-test": "node ./test/os-ingestion-api.test.js",
-    "es-search-test": "node ./test/es-search-api.test.js",
-    "es-ingestion-test": "node ./test/es-ingestion-api.test.js"
+    "test:ingest:os": "node ./test/os-ingestion-api.test.js",
+    "test:search:os": "node ./test/os-search-api.test.js",
+    "test:ingest:es": "node ./test/es-ingestion-api.test.js",
+    "test:search:es": "node ./test/es-search-api.test.js"
   },
   "keywords": [],
   "author": "",

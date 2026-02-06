@@ -52,6 +52,17 @@ This is the repository that manages all the calls to various search engines like
   for f in temporary_*.sql; do mysql -u admin -p"$DATABASE_PASSWORD" $DATABASE_NAME < "$f"; done
   ```
 
+### Testing locally
+- Use `package.json` scripts to ingest the index in OpenSearch/ElasticSeach using MySQL data
+  ```bash
+  npm run test:ingest:os
+  ```
+
+- Use `package.json` scripts to test OpenSearch/ElasticSeach search
+  ```bash
+  npm run test:search:os
+  ```
+
 ### Endpoints
 
 **1. Create an index and ingest data**
