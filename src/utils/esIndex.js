@@ -341,7 +341,11 @@ async function createIndex(index, upsert = true) {
         });
 
         const exists = await client.indexExists();
-        if (exists && upsert) {
+        if (exists) {
+            if (!upsert) {
+                console.log(`Index '${index}' already exists. Skipping creation.`);
+                return;
+            }
             console.log(`Index '${index}' already exists. Deleting...`);
             await client.dropIndex();
             console.log(`Deleted index '${index}'.`);
@@ -382,7 +386,7 @@ function parseRow(row) {
 }
 
 // Fetches MySQL data and ingests into ElasticSearch
-async function ingestData({ index = 'test-index', customer = 'default' }) {
+async function ingestData({ index, customer }) {
     try {
         const client = new ElasticSearchClient({
             node: process.env.ELASTICSEARCH_ENDPOINT,

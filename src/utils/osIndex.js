@@ -513,7 +513,11 @@ async function createIndex(index, upsert = true) {
     const client = getOpenSearchClient();
     try {
         const exists = await client.indexExists(index);
-        if (exists && upsert) {
+        if (exists) {
+            if (!upsert) {
+                console.log(`Index '${index}' already exists. Skipping creation.`);
+                return;
+            }
             console.log(`Index '${index}' already exists. Deleting...`);
             await client.client.indices.delete({ index: index });
             console.log(`Deleted index '${index}'.`);
@@ -550,7 +554,7 @@ function parseRow(row) {
 }
 
 // Fetches MySQL data and ingests into OpenSearch
-async function ingestData({ index = 'test-index', customer = 'default' }) {
+async function ingestData({ index, customer }) {
     const client = getOpenSearchClient();
     // Fetch data from MySQL
     const [faqRows, guideRows, tutorialRows, videoRows] = await Promise.all([
