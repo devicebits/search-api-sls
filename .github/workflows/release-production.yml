@@ -37,5 +37,7 @@ jobs:
             ~/.npm
             **/node_modules
           key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+      - name: Install dependencies
+        run: npm ci
       - name: Deploy to production
         run: npm run deploy:production
