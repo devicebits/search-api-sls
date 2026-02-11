@@ -1,7 +1,5 @@
 service: search-api-sls
 
-frameworkVersion: "3"
-
 provider:
   name: aws
   runtime: nodejs18.x
