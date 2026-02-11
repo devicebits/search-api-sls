@@ -20,13 +20,15 @@ jobs:
           role-to-assume: "${{ secrets.OIDC_AWS_ROLE_SLS_DEPLOYMENT_PROD }}"
           aws-region: ${{ vars.AWS_DEFAULT_REGION || 'us-east-1' }}
           role-session-name: "GITHUB-${{github.run_id}}"
+
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
-          node-version: 20
+          node-version: 18
           registry-url: "https://npm.pkg.github.com"
           scope: "@devicebits"
           always-auth: true
+
       - name: Cache multiple paths
         uses: actions/cache@v3
         with:
@@ -34,8 +36,10 @@ jobs:
             ~/.npm
             **/node_modules
           key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+
       - name: Install Dependencies
         run: npm ci
+
       - name: deploy branch
         run: |
           echo -e "$STAGENAME:\n  <<: *DEFAULT" >> serverless.env.yml
