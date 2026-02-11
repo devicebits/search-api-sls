@@ -1,0 +1,54 @@
+name: Release Production
+run-name: "[Automated] @${{ github.actor }} ran ${{ github.workflow }} on ${{ github.ref }}"
+description: |
+  This workflow is triggered on version tag pushes and deploys the application to the production environment.
+  It uses AWS credentials configured via OIDC and caches npm dependencies for faster builds.
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "${{ secrets.OIDC_AWS_ROLE_SLS_DEPLOYMENT_PROD }}"
+          aws-region: ${{ vars.AWS_DEFAULT_REGION || 'us-east-1' }}
+          role-session-name: "GITHUB-${{github.run_id}}"
+
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@devicebits"
+          always-auth: true
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Cache multiple paths
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            **/node_modules
+          key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.USER_GITHUB_TOKEN }}
+
+      - name: Deploy to production
+        run: npm run deploy:production
+        env:
+          SERVERLESS_ACCESS_KEY: ${{ secrets.SERVERLESS_ACCESS_KEY }}
