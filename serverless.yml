@@ -1,6 +1,7 @@
+
 service: search-api-sls
 
-frameworkVersion: "3"
+frameworkVersion: "3.x"
 
 provider:
   name: aws
