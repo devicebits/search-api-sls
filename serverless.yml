@@ -3,22 +3,28 @@ service: search-api-sls
 provider:
   name: aws
   runtime: nodejs18.x
-  environment: ${file(serverless.env.yml):${self:custom.stage}}
+  region: us-east-1
+  memorySize: 256
+  stage: ${opt:stage, 'dev'}
+  versionFunctions: false
+  deploymentBucket:
+    name: sls-lambda-deploys
+  timeout: 60
+  environment: ${file(./serverless.env.yml):${opt:stage, 'dev'}}
+  vpc:
+    securityGroupIds: ${ssm:/vpc/securityGroupIds}
+    subnetIds: ${ssm:/vpc/subnetIds}
 
-  
 custom:
   stage: ${opt:stage, 'dev'}
   customDomain:
-    domainName: ${self:custom.domains.${self:custom.stage}}
-    basePath: ''
-    stage: ${self:custom.stage}
+    domainName: ${env:DOMAIN_NAME, 'search-${sls:stage}.devicebits.com'}
+    basePath: ""
+    stage: ${sls:stage}
     createRoute53Record: true
-    endpointType: 'regional'
-    apiType: HTTP
-    securityPolicy: tls_1_2
-  domains:
-    dev: search-staging.devicebits.com
-    prod: search.devicebits.com
+    endpointType: "regional"
+    apiType: "rest"
+    autoDomain: true
 
 functions:
   ingest:
