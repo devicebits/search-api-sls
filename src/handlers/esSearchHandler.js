@@ -1,9 +1,6 @@
-const OpenSearchClient = require('../engines/OpenSearch/openSearchClient');
-const { buildQuery } = require('../utils/osHelpers');
-const { getOpenSearchClient } = require('../lib/opensearch-client');
-const { logApiEvent } = require('../utils/apiLogger');
-
-const osClient = getOpenSearchClient();
+const ElasticSearchClient = require("../engines/ElasticSearch/elasticSearchClient");
+const { buildQuery } = require("../utils/esHelpers");
+const { logApiEvent } = require("../utils/apiLogger");
 
 module.exports.index = async (event) => {
   const start = Date.now();
@@ -12,7 +9,7 @@ module.exports.index = async (event) => {
     try {
       body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
     } catch (parseError) {
-      logApiEvent({ type: 'error', handler: 'osSearchHandler', error: 'Invalid JSON in request body', event });
+      logApiEvent({ type: 'error', handler: 'esSearchHandler', error: 'Invalid JSON in request body', event });
       return {
         statusCode: 400,
         body: JSON.stringify({ error: 'Invalid JSON in request body' }),
@@ -22,25 +19,23 @@ module.exports.index = async (event) => {
     body = event;
   }
   const { index, query, project, filters, aggs, from, size, langId } = body;
-  logApiEvent({ type: 'request', handler: 'osSearchHandler', event: body });
-
+  logApiEvent({ type: 'request', handler: 'esSearchHandler', event: body });
   try {
-    if (!index) {
-      throw new Error('Index should be present');
-    }
-    const {query: builtQuery, ...rest} = buildQuery(query, project, langId);
+    // Build the base query using buildQuery helper
+    const { query: builtQuery, ...rest } = buildQuery(query, project, langId);
 
+    // Compose must/filter clauses
     const mustClause = [
       builtQuery
-    ]
-
+    ];
     if (filters && Object.keys(filters).length) {
       const terms = Object.entries(filters).map(([field, value]) => ({
         term: { [field]: value }
       }));
       mustClause.push(...terms);
     }
-    
+
+    // Compose the final query object
     const finalQuery = {
       query: {
         bool: {
@@ -54,10 +49,11 @@ module.exports.index = async (event) => {
         }
       },
       ...rest
-    }
+    };
 
+    // Add aggs if present
     if (aggs && Object.keys(aggs).length) {
-     finalQuery.aggs = aggs; 
+      finalQuery.aggs = aggs;
     }
 
     // Add from/size for pagination
@@ -66,27 +62,27 @@ module.exports.index = async (event) => {
 
     logApiEvent({
       type: 'search_query',
-      handler: 'osSearchHandler',
+      handler: 'esSearchHandler',
       query: finalQuery,
       user: event.requestContext?.authorizer?.principalId || 'anonymous',
       timestamp: new Date().toISOString()
     });
-    
-    // Query the OpenSearch client
-    const results = await osClient.search(
+
+    const esClient = new ElasticSearchClient({
+      node: process.env.ELASTICSEARCH_ENDPOINT,
       index,
-      finalQuery,
-      finalQuery.from,
-      finalQuery.size
-    );
+    });
+    // Query the ElasticSearch client
+    const results = await esClient.search(finalQuery);
 
     logApiEvent({
       type: 'response',
-      handler: 'osSearchHandler',
+      handler: 'esSearchHandler',
       status: 200,
       duration: Date.now() - start,
       response: results
     });
+
     return {
       statusCode: 200,
       body: JSON.stringify(results),
@@ -94,15 +90,22 @@ module.exports.index = async (event) => {
   } catch (error) {
     logApiEvent({
       type: 'error',
-      handler: 'osSearchHandler',
+      handler: 'esSearchHandler',
       status: 500,
       duration: Date.now() - start,
       error: error.message
     });
-    console.log('OpenSearch index error:', error)
+    if (error.meta && error.meta.body && error.meta.body.error) {
+      console.error('ElasticSearch index error:', JSON.stringify(error.meta.body.error, null, 2));
+    } else {
+      console.error('ElasticSearch index error:', error);
+    }
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: error.message }),
+      body: JSON.stringify({
+        error: error.message,
+        details: error.meta && error.meta.body && error.meta.body.error ? error.meta.body.error : undefined
+      }),
     };
   }
 };

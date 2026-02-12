@@ -24,6 +24,7 @@ custom:
 functions:
   ingest:
     handler: src/handlers/ingestionHandler.index
+    timeout: 300
     events:
       - httpApi:
           path: /create
@@ -33,7 +34,7 @@ functions:
     timeout: 300
     events:
       - httpApi:
-          path: /documents
+          path: /documents/{searchType}
           method: get
   healthCheck:
     handler: src/handlers/healthCheck.index
@@ -41,6 +42,13 @@ functions:
       - httpApi:
           path: /
           method: get
+  esSearchHandler:
+    handler: src/handlers/esSearchHandler.index
+    timeout: 300
+    events:
+      - httpApi:
+          path: /esearch
+          method: post
   osSearchHandler:
     handler: src/handlers/osSearchHandler.index
     timeout: 300

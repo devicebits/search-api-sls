@@ -4,6 +4,32 @@ class ElasticSearchClient {
   constructor(config) {
     this.client = new Client({ node: config.node });
     this.index = config.index;
+    this.client.ping().catch((err) => {
+      console.error('Error connecting to Elasticsearch:', err);
+      throw err;
+    });
+  }
+
+  async createIndex(body = {}) {
+    try {
+      return await this.client.indices.create({
+        index: this.index,
+        body,
+      });
+    } catch (err) {
+      console.error(`Error creating index ${this.index}:`, err, err?.meta?.body?.error);
+      throw err;
+    }
+  }
+
+  async indexExists() {
+    try {
+      const { body: exists } = await this.client.indices.exists({ index: this.index });
+      return exists;
+    } catch (err) {
+      console.error(`Error checking existence of index ${this.index}:`, err);
+      throw err;
+    }
   }
 
   async ensureIndexExists() {
@@ -29,7 +55,7 @@ class ElasticSearchClient {
         });
       }
     } catch (error) {
-      console.error(`Error creating index '${this.index}':`, error);
+      // console.error(`Error creating index '${this.index}':`, error);
       throw error;
     }
   }
@@ -55,6 +81,15 @@ class ElasticSearchClient {
       }
     } catch (err) {
       console.error(`Error deleting index ${this.index}:`, err);
+      throw err;
+    }
+  }
+
+  async refreshIndex() {
+    try {
+      return await this.client.indices.refresh({ index: this.index });
+    } catch (err) {
+      console.error(`Error refreshing index ${this.index}:`, err);
       throw err;
     }
   }
@@ -118,10 +153,29 @@ class ElasticSearchClient {
     }
   }
 
-  async ingest(data) {
-    await this.ensureIndexExists();
-    const bulkBody = data.flatMap(doc => [{ index: { _index: this.index } }, doc]);
-    await this.client.bulk({ refresh: true, body: bulkBody });
+  async ingest({ doc, docId }) {
+    try {
+      return await this.client.index({
+        index: this.index,
+        type: 'doc',
+        id: docId,
+        body: doc,
+      });
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async search(body) {
+    try {
+      return await this.client.search({
+        index: this.index,
+        body,
+      });
+    } catch (err) {
+      console.error(`Error searching in index ${this.index}:`, err);
+      throw err;
+    }
   }
 }
 
