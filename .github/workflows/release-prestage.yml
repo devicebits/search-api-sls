@@ -1,0 +1,49 @@
+name: Release Prestage
+description: |
+  This workflow is triggered on pull requests and deploys the application to the prestage environment.
+  It uses AWS credentials configured via OIDC and caches npm dependencies for faster builds.
+
+run-name: "[Automated] @${{ github.actor }} ran ${{ github.workflow }} on ${{ github.ref }}"
+on: [pull_request]
+
+jobs:
+  deploy-branch:
+    name: Deploy branch
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "${{ secrets.OIDC_AWS_ROLE_SLS_DEPLOYMENT_PROD }}"
+          aws-region: ${{ vars.AWS_DEFAULT_REGION || 'us-east-1' }}
+          role-session-name: "GITHUB-${{github.run_id}}"
+
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@devicebits"
+          always-auth: true
+
+      - name: Cache multiple paths
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.npm
+            **/node_modules
+          key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: deploy branch
+        run: |
+          echo -e "$STAGENAME:\n  <<: *DEFAULT" >> serverless.env.yml
+          cat serverless.env.yml
+          ./node_modules/.bin/sls deploy --stage $STAGENAME
+        env:
+          STAGENAME: qa-${{ github.event.pull_request.head.ref }}
