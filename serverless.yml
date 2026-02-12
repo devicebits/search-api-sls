@@ -4,7 +4,8 @@ provider:
   name: aws
   runtime: nodejs18.x
   environment: ${file(serverless.env.yml):${self:custom.stage}}
-
+  deploymentBucket:
+    name: sls-lambda-deploys
   
 custom:
   stage: ${opt:stage, 'dev'}
