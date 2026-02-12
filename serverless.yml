@@ -1,4 +1,3 @@
-
 service: search-api-sls
 
 frameworkVersion: "3"
@@ -36,6 +35,7 @@ functions:
       - httpApi:
           path: /create
           method: post
+          cors: true
   getAllDocument:
     handler: src/handlers/getAllDocumentsHandler.index
     timeout: 300
@@ -43,12 +43,14 @@ functions:
       - httpApi:
           path: /documents
           method: get
+          cors: true
   healthCheck:
     handler: src/handlers/healthCheck.index
     events:
       - httpApi:
           path: /
           method: get
+          cors: true
   osSearchHandler:
     handler: src/handlers/osSearchHandler.index
     timeout: 300
@@ -56,6 +58,7 @@ functions:
       - httpApi:
           path: /osearch
           method: post
+          cors: true
 
 plugins:
   - serverless-offline
