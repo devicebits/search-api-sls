@@ -177,6 +177,10 @@ services:
       - xpack.watcher.enabled=false
       - xpack.security.enabled=false
       - xpack.license.self_generated.type=${LICENSE}
+      - http.cors.enabled=true
+      - http.cors.allow-origin=*
+      - http.cors.allow-headers=*
+      - http.cors.allow-methods=OPTIONS,HEAD,GET,POST,PUT,DELETE
     cap_add:
       - IPC_LOCK
     mem_limit: ${ES_MEM_LIMIT}
