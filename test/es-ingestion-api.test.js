@@ -1,7 +1,7 @@
 const http = require('http');
 
-const TEST_INDEX = 'customer-docomopacificca';
 const TEST_CUSTOMER = 'docomopacificca';
+const TEST_INDEX = TEST_CUSTOMER;
 
 const postData = JSON.stringify({
     searchEngine: 'elasticsearch',
