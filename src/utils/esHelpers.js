@@ -167,4 +167,39 @@ function getLanguageCol(colName, langIndex = 1, longFormat = false) {
 }
 
 
-module.exports = { buildQuery }
+
+// Powerful auto-suggestion query builder
+function buildAutoSuggestQuery(query, langId = 1, size = 10) {
+  // Use analyzed fields for English autosuggest
+  const headingField =
+    langId === 1 ? "heading_language_1" : `heading_language_${langId}`;
+  // Only match prefix in name and phrase/heading fields
+  return {
+    query: {
+      bool: {
+        should: [
+          // Prefix match on name (keyword, case-sensitive)
+          {
+            prefix: {
+              name: query.toLowerCase(),
+            },
+          },
+          // Strict phrase prefix match on heading (analyzed, case-insensitive)
+          {
+            match_phrase_prefix: {
+              [headingField]: {
+                query,
+                max_expansions: 10,
+              },
+            },
+          },
+        ],
+        minimum_should_match: 1,
+      },
+    },
+    size,
+    _source: [headingField, "name", "title", "PK"],
+  };
+}
+
+module.exports = { buildQuery, buildAutoSuggestQuery };

@@ -48,6 +48,13 @@ functions:
       - httpApi:
           path: /osearch
           method: post
+  osAutoSuggestHandler:
+    handler: src/handlers/osAutoSuggestHandler.index
+    timeout: 300
+    events:
+      - httpApi:
+          path: /osautosuggest
+          method: get
 
 plugins:
   - serverless-offline
