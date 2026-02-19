@@ -5,6 +5,26 @@ require('dotenv').config();
 const ElasticSearchClient = require('../engines/ElasticSearch/elasticSearchClient');
 const { getFaqData, getGuideData, getTutorialData, getVideoData } = require('./dbQueries');
 
+// Utility to add required keys to each article
+const _addRequiredKeys = (articles, type) => {
+    const requiredKeys = {
+        '@timestamp': new Date(),
+        type: type,
+        disabled: false,
+        deleted: 0,
+        outdated: false,
+    };
+    return articles.map((article) => ({ ...article, ...requiredKeys }));
+};
+
+// Utility to generate ES bulk index metadata
+const _getIndex = (customer, ids, type, operation) => {
+    return ids.map((id) => {
+        const articleId = `${type}-${id}-1`;
+        return { [operation]: { _index: customer, _type: 'doc', _id: articleId } };
+    });
+};
+
 const indexName = process.argv[2] || 'test-index';
 
 const indexBody = {
@@ -572,7 +592,8 @@ async function ingestData({ index, customer }) {
             node: process.env.ELASTICSEARCH_ENDPOINT,
             index
         });
-        // Fetch data from MySQL
+
+        // Fetch all data for the customer from MySQL
         const [faqRows, guideRows, tutorialRows, videoRows] = await Promise.all([
             getFaqData(customer),
             getGuideData(customer),
@@ -580,51 +601,43 @@ async function ingestData({ index, customer }) {
             getVideoData(customer)
         ]);
 
-        // Helper to get doc id
-        function getDocId(row, idFields) {
-            for (const f of idFields) {
-                if (row[f] != null) return String(row[f]);
-                if (row[f.toLowerCase()] != null) return String(row[f.toLowerCase()]);
-                if (row[f.toUpperCase()] != null) return String(row[f.toUpperCase()]);
-            }
-            return null;
-        }
-
-        // Ingest all data types in batches
-        const contentTypes = [
-            { name: 'faq', rows: faqRows, idFields: ['PK', 'pk'] },
-            { name: 'guide', rows: guideRows, idFields: ['PK'] },
-            { name: 'tutorial', rows: tutorialRows, idFields: ['PK'] },
-            { name: 'video', rows: videoRows, idFields: ['PK', 'pk'] }
+        // Add required keys and build bulk body for each type
+        const types = [
+            { name: 'faq', rows: faqRows },
+            { name: 'guide', rows: guideRows },
+            { name: 'tutorial', rows: tutorialRows },
+            { name: 'video', rows: videoRows }
         ];
 
-        let success = 0, failed = 0, errors = [];
-        for (const { name, rows, idFields } of contentTypes) {
-            const docsWithIds = rows.map((row, i) => {
-                const docId = getDocId(row, idFields);
-                return {
-                    doc: parseRow(row),
-                    docId,
-                    rowIdx: i,
-                    raw: row
-                };
-            });
-            const validDocs = docsWithIds.filter(d => d.docId);
-            const invalidDocs = docsWithIds.filter(d => !d.docId);
-            failed += invalidDocs.length;
-            errors.push(...invalidDocs.map(d => ({ type: name, row: d.rowIdx, error: 'Missing doc id', data: d.raw })));
-            for (const d of validDocs) {
-                try {
-                    await client.ingest({ doc: d.doc, docId: d.docId });
-                    success++;
-                } catch (e) {
-                    failed++;
-                    errors.push({ type: name, row: d.rowIdx, error: e.message, data: d.raw });
-                }
+        let bulkBody = [];
+        let total = 0, failed = 0, errors = [];
+        for (const { name, rows } of types) {
+            if (!rows || !rows.length) continue;
+            const ids = rows.map(r => r.pk || r.PK);
+            const articles = _addRequiredKeys(rows, name);
+            const indexMeta = _getIndex(customer, ids, name, 'index');
+            for (let i = 0; i < articles.length; i++) {
+                bulkBody.push(indexMeta[i]);
+                bulkBody.push(articles[i]);
+            }
+            total += articles.length;
+        }
+
+        // Bulk ingest
+        if (bulkBody.length > 0) {
+            const { body: resp } = await client.client.bulk({ refresh: true, body: bulkBody });
+            if (resp.errors) {
+                resp.items.forEach((item, idx) => {
+                    const op = item.index || item.create;
+                    if (op && op.error) {
+                        failed++;
+                        errors.push({ idx, error: op.error });
+                    }
+                });
             }
         }
         await client.refreshIndex();
-        return { success, failed, errors };
+        return { success: total - failed, failed, errors };
     } catch (err) {
         console.error('Error ingesting data:', err);
         throw err;

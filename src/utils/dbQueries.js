@@ -1,160 +1,175 @@
 const { createConnection, closeConnection } = require('./dbClient');
 
-const SQL_FAQ_QUERY = `
-SELECT
-  'faq' AS type,
-  faq.*,
-  faq.val AS val,
-  GROUP_CONCAT(DISTINCT topics.name SEPARATOR ',') AS topics,
-  CONCAT_WS(' ', p.Name, pc.customer_name) AS model,
-  p.manufacturer,
-  pc.language AS language,
-  MIN(ct.deleted) AS deleted,
-  pt.PhoneType AS phone_type
-FROM faq
-JOIN customer_faq ct ON ct.faq_FK = faq.PK
-JOIN customer c ON c.PK = ct.Customer_FK
-JOIN customer_phone cp ON cp.Customer_FK = c.PK
-JOIN phone p ON cp.Phone_FK = p.pk AND faq.phonefk = p.pk
-JOIN phoneClone pc ON pc.phoneFK = faq.phonefk
-LEFT JOIN faq_topics ON faq.PK = faq_topics.faq_id
-LEFT JOIN topics ON faq_topics.topic_id = topics.PK
-LEFT JOIN phonetype pt ON p.PhoneTypeFK = pt.PK
-WHERE c.Name = ?
-  AND p.Name NOT LIKE '%NoIndex%'
-  AND (faq.concept != 'freenav' OR faq.concept IS NULL)
-GROUP BY faq.PK, faq.phonefk, faq.outputOrder, faq.name, faq.name_language_2, faq.name_language_3, faq.val, faq.val_language_2, faq.val_language_3, faq.academy_category_fk, faq.concept, faq.name_stemmed, faq.presales, faq.disabled, faq.outdated, faq.salesforce_id, p.Name, pc.customer_name, p.manufacturer, pc.language, pt.PhoneType
-`;
-
-const SQL_GUIDE_QUERY = `
-SELECT
-  'guide' AS type,
-  guide.PK,
-  guide.phonefk,
-  guide.name,
-  guide.name_language_2,
-  guide.name_language_3,
-  steps.steps_language_1,
-  steps.steps_language_2,
-  steps.steps_language_3,
-  pc.language AS language,
-  MIN(ct.deleted) AS deleted,
-  CONCAT_WS(' ', p.Name, pc.customer_name) AS model,
-  p.manufacturer,
-  pt.PhoneType AS phone_type
-FROM troubleshooting_guide guide
-JOIN (
-    SELECT
-      g.PK,
-      GROUP_CONCAT(step SEPARATOR ',') AS steps_language_1,
-      GROUP_CONCAT(step_language_2 SEPARATOR ',') AS steps_language_2,
-      GROUP_CONCAT(step_language_3 SEPARATOR ',') AS steps_language_3
-    FROM troubleshooting_guide g
-    JOIN guide_steps step ON step.guide_fk = g.PK
-    GROUP BY g.PK
-) steps ON steps.PK = guide.PK
-JOIN customer_guide ct ON ct.guide_FK = guide.PK
-JOIN customer c ON c.PK = ct.Customer_FK
-JOIN customer_phone cp ON cp.Customer_FK = c.PK
-JOIN phoneClone pc ON guide.phonefk = pc.phoneFK
-JOIN phone p ON guide.phonefk = p.pk AND cp.Phone_FK = p.pk
-LEFT JOIN phonetype pt ON p.PhoneTypeFK = pt.PK
-WHERE c.Name = ?
-  AND p.Name NOT LIKE '%NoIndex%'
-GROUP BY guide.PK, guide.phonefk, guide.name, guide.name_language_2, guide.name_language_3, steps.steps_language_1, steps.steps_language_2, steps.steps_language_3, pc.language, p.Name, pc.customer_name, p.manufacturer, pt.PhoneType
-`;
-
-const SQL_TUTORIAL_QUERY = `
-SELECT
-  'tutorial' AS type,
-  tutorial.*,
-  CAST(pc.language AS CHAR) AS language,
-  CAST(ct.inheritable AS UNSIGNED) AS inheritable,
-  cat.name AS category,
-  cat2.name AS category_language_2,
-  cat3.name AS category_language_3,
-  steps.steps_language_1,
-  steps.steps_language_2,
-  steps.steps_language_3,
-  CONCAT_WS(' ', p.Name, pc.customer_name) AS model,
-  p.manufacturer,
-  MIN(ct.deleted) AS deleted,
-  pt.PhoneType AS phone_type
-FROM tutorial
-JOIN (
-    SELECT
-      t.PK,
-      GROUP_CONCAT(DISTINCT step SEPARATOR ',') AS steps_language_1,
-      GROUP_CONCAT(DISTINCT step_language_2 SEPARATOR ',') AS steps_language_2,
-      GROUP_CONCAT(DISTINCT step_language_3 SEPARATOR ',') AS steps_language_3
-    FROM tutorial t
-    JOIN tutorialsteps step ON step.tutorialfk = t.PK
-    GROUP BY t.PK
-) steps ON steps.PK = tutorial.PK
-LEFT JOIN tutorial_category cat ON cat.PK = tutorial.tutorial_categoryFK
-LEFT JOIN tutorial_category cat2 ON cat2.PK = tutorial.tutorial_categoryFK_language_2
-LEFT JOIN tutorial_category cat3 ON cat3.PK = tutorial.tutorial_categoryFK_language_3
-JOIN customer_tutorial ct ON ct.tutorial_FK = tutorial.PK AND tutorial.tutorialStatus != 'HIDDEN'
-JOIN customer c ON c.PK = ct.Customer_FK
-JOIN customer_phone cp ON cp.Customer_FK = c.PK
-JOIN phoneClone pc ON pc.phoneFK = tutorial.phonefk
-JOIN phone p ON tutorial.phonefk = p.pk AND cp.Phone_FK = p.pk
-LEFT JOIN phonetype pt ON p.PhoneTypeFK = pt.PK
-WHERE c.Name = ?
-  AND p.Name NOT LIKE '%NoIndex%'
-  AND p.pk NOT IN (SELECT parent_phone_fk FROM customer_parent_phone)
-GROUP BY tutorial.PK, tutorial.phonefk, tutorial.name, tutorial.Features, tutorial.tutorial_categoryFK, tutorial.tutorialMCD, tutorial.tutorialType, tutorial.outputOrder, tutorial.tutorialStatus, tutorial.name_language_2, tutorial.name_language_3, tutorial.tutorial_categoryFK_language_2, tutorial.tutorial_categoryFK_language_3, tutorial.tutorialGUID, tutorial.presales, tutorial.outdated, tutorial.disabled, tutorial.single_imaged, pc.language, ct.inheritable, cat.name, cat2.name, cat3.name, p.Name, pc.customer_name, p.manufacturer, pt.PhoneType
-`;
-
-const SQL_VIDEO_QUERY = `
-SELECT
-  'video' AS type,
-  video.*,
-  CONCAT_WS(' ', p.Name, pc.customer_name) AS model,
-  p.manufacturer,
-  pc.language AS language,
-  MIN(ct.deleted) AS deleted,
-  pt.PhoneType AS phone_type
-FROM video
-JOIN customer_video ct ON ct.video_FK = video.PK
-JOIN customer c ON c.PK = ct.Customer_FK
-JOIN customer_phone cp ON cp.Customer_FK = c.PK
-JOIN phone p ON video.phonefk = p.pk AND cp.Phone_FK = p.pk
-JOIN phoneClone pc ON pc.phoneFK = video.phonefk
-LEFT JOIN phonetype pt ON p.PhoneTypeFK = pt.PK
-WHERE c.Name = ?
-  AND p.Name NOT LIKE '%NoIndex%'
-GROUP BY video.PK, video.phonefk, video.outputOrder, video.name, video.name_language_2, video.name_language_3, video.video_url, video.academy_category_fk, video.concept, video.name_stemmed, video.presales, video.thumbnail_url, video.video_url_language_2, video.video_url_language_3, video.featured_video, video.disabled, video.thumbnail_url_language_2, video.thumbnail_url_language_3, video.outdated, p.Name, pc.customer_name, p.manufacturer, pc.language, pt.PhoneType
-`;
-
-async function getDbData(customerId) {
-  const conn = await createConnection();
-  const [rows] = await conn.execute('SELECT * FROM products WHERE customer = ?', [customerId]);
-  await closeConnection();
-  return rows;
-}
-
-async function executeQuery(query, params = []) {
-  const conn = await createConnection();
-  const [rows] = await conn.execute(query, params);
-  await closeConnection();
-  return rows;
-}
-
 async function getFaqData(customerName) {
-  return await executeQuery(SQL_FAQ_QUERY, [customerName]);
+  const db = createConnection();
+  try {
+    return await db
+      .select(
+        'faq.PK as pk',
+        db.raw('ANY_VALUE(faq.name) as name'),
+        db.raw('ANY_VALUE(faq.outputOrder) as outputorder'),
+        db.raw('ANY_VALUE(faq.phonefk) as phonefk'),
+        db.raw('ANY_VALUE(faq.concept) as concept'),
+        db.raw('ANY_VALUE(faq.name_stemmed) as name_stemmed'),
+        db.raw('ANY_VALUE(faq.val) as val'),
+        db.raw('ANY_VALUE(faq.val_language_2) as val_language_2'),
+        db.raw('ANY_VALUE(faq.val_language_3) as val_language_3'),
+        db.raw('ANY_VALUE(faq.name_language_2) as name_language_2'),
+        db.raw('ANY_VALUE(faq.name_language_3) as name_language_3'),
+        db.raw('ANY_VALUE(faq.academy_category_fk) as academy_category_fk'),
+        db.raw('ANY_VALUE(phone.name) as model'),
+        db.raw('ANY_VALUE(phone.manufacturer) as manufacturer'),
+        db.raw('ANY_VALUE(phonetype.PhoneType) as phone_type'),
+        db.raw('ANY_VALUE(phoneClone.language) as language')
+      )
+      .from('faq')
+      .join('phoneClone', 'faq.phonefk', 'phoneClone.phoneFK')
+      .join('phone', 'faq.phonefk', 'phone.pk')
+      .join('phonetype', 'phone.PhoneTypeFK', 'phonetype.PK')
+      .join('customer_faq', 'faq.PK', 'customer_faq.faq_FK')
+      .join('customer', 'customer_faq.Customer_FK', 'customer.PK')
+      .where({ 'customer.name': customerName })
+      .groupBy('faq.PK');
+  } finally {
+    await closeConnection();
+  }
 }
 
 async function getGuideData(customerName) {
-  return await executeQuery(SQL_GUIDE_QUERY, [customerName]);
+  const db = createConnection();
+  try {
+    return await db
+      .select(
+        'troubleshooting_guide.PK as pk',
+        db.raw('ANY_VALUE(troubleshooting_guide.phonefk) as phonefk'),
+        db.raw('ANY_VALUE(troubleshooting_guide.name) as name'),
+        db.raw('ANY_VALUE(troubleshooting_guide.outputOrder) as outputorder'),
+        db.raw('ANY_VALUE(troubleshooting_guide.name_language_2) as name_language_2'),
+        db.raw('ANY_VALUE(troubleshooting_guide.name_language_3) as name_language_3'),
+        db.raw('ANY_VALUE(troubleshooting_guide.academy_category_fk) as academy_category_fk'),
+        db.raw('ANY_VALUE(troubleshooting_guide.concept) as concept'),
+        db.raw('ANY_VALUE(troubleshooting_guide.name_stemmed) as name_stemmed'),
+        db.raw('ANY_VALUE(phone.name) as model'),
+        db.raw('ANY_VALUE(phone.manufacturer) as manufacturer'),
+        db.raw('ANY_VALUE(phonetype.PhoneType) as phone_type'),
+        db.raw('ANY_VALUE(phoneClone.language) as language'),
+        db.raw('ANY_VALUE(guide_steps.step) as steps_language_1'),
+        db.raw('ANY_VALUE(guide_steps.step_language_2) as steps_language_2'),
+        db.raw('ANY_VALUE(guide_steps.step_language_3) as steps_language_3')
+      )
+      .from('troubleshooting_guide')
+      .join('phoneClone', 'troubleshooting_guide.phonefk', 'phoneClone.phoneFK')
+      .join('phone', 'troubleshooting_guide.phonefk', 'phone.pk')
+      .join('phonetype', 'phone.PhoneTypeFK', 'phonetype.PK')
+      .join('guide_steps', 'troubleshooting_guide.PK', 'guide_steps.guide_fk')
+      .join('customer_guide', 'troubleshooting_guide.PK', 'customer_guide.guide_FK')
+      .join('customer', 'customer_guide.Customer_FK', 'customer.PK')
+      .where({ 'customer.name': customerName })
+      .groupBy('troubleshooting_guide.PK');
+  } finally {
+    await closeConnection();
+  }
 }
 
 async function getTutorialData(customerName) {
-  return await executeQuery(SQL_TUTORIAL_QUERY, [customerName]);
+  const db = createConnection();
+  try {
+    return await db
+      .select(
+        'tutorial.PK as pk',
+        db.raw('ANY_VALUE(tutorial.phonefk) as phonefk'),
+        db.raw('ANY_VALUE(tutorial.name) as name'),
+        db.raw('ANY_VALUE(tutorial.Features) as features'),
+        db.raw('ANY_VALUE(tutorial.tutorial_categoryFK) as tutorial_categoryFK'),
+        db.raw('ANY_VALUE(tutorial.tutorialMCD) as tutorialMCD'),
+        db.raw('ANY_VALUE(tutorial.tutorialType) as tutorialType'),
+        db.raw('ANY_VALUE(tutorial.outputOrder) as outputorder'),
+        db.raw('ANY_VALUE(tutorial.tutorialStatus) as tutorialStatus'),
+        db.raw('ANY_VALUE(tutorial.name_language_2) as name_language_2'),
+        db.raw('ANY_VALUE(tutorial.name_language_3) as name_language_3'),
+        db.raw('ANY_VALUE(tutorial.tutorial_categoryFK_language_2) as category_language_2'),
+        db.raw('ANY_VALUE(tutorial.tutorial_categoryFK_language_3) as category_language_3'),
+        db.raw('ANY_VALUE(tutorial.tutorialGUID) as tutorialGUID'),
+        db.raw('ANY_VALUE(phone.name) as model'),
+        db.raw('ANY_VALUE(phone.manufacturer) as manufacturer'),
+        db.raw('ANY_VALUE(customer_tutorial.inheritable) as inheritable'),
+        db.raw('ANY_VALUE(phonetype.PhoneType) as phone_type'),
+        db.raw('ANY_VALUE(phoneClone.language) as language'),
+        db.raw('ANY_VALUE(tutorialsteps.step) as steps_language_1'),
+        db.raw('ANY_VALUE(tutorialsteps.step_language_2) as steps_language_2'),
+        db.raw('ANY_VALUE(tutorialsteps.step_language_3) as steps_language_3'),
+        db.raw('ANY_VALUE(tc.name) as category')
+      )
+      .from('tutorial')
+      .join('tutorial_category as tc', 'tutorial.tutorial_categoryFK', 'tc.PK')
+      .join('phoneClone', 'tutorial.phonefk', 'phoneClone.phoneFK')
+      .join('phone', 'tutorial.phonefk', 'phone.pk')
+      .join('phonetype', 'phone.PhoneTypeFK', 'phonetype.PK')
+      .join('tutorialsteps', 'tutorial.PK', 'tutorialsteps.tutorialfk')
+      .join('customer_tutorial', 'tutorial.PK', 'customer_tutorial.tutorial_FK')
+      .join('customer', 'customer_tutorial.Customer_FK', 'customer.PK')
+      .where({ 'customer.name': customerName })
+      .groupBy('tutorial.PK');
+  } finally {
+    await closeConnection();
+  }
 }
 
 async function getVideoData(customerName) {
-  return await executeQuery(SQL_VIDEO_QUERY, [customerName]);
+  const db = createConnection();
+  try {
+    return await db
+      .select(
+        'video.PK as pk',
+        db.raw('ANY_VALUE(video.phonefk) as phonefk'),
+        db.raw('ANY_VALUE(video.outputOrder) as outputorder'),
+        db.raw('ANY_VALUE(video.name) as name'),
+        db.raw('ANY_VALUE(video.name_language_2) as name_language_2'),
+        db.raw('ANY_VALUE(video.name_language_3) as name_language_3'),
+        db.raw('ANY_VALUE(video.video_url) as video_url'),
+        db.raw('ANY_VALUE(video.academy_category_fk) as academy_category_fk'),
+        db.raw('ANY_VALUE(video.concept) as concept'),
+        db.raw('ANY_VALUE(video.name_stemmed) as name_stemmed'),
+        db.raw('ANY_VALUE(video.thumbnail_url) as thumbnail_url'),
+        db.raw('ANY_VALUE(video.video_url_language_2) as video_url_language_2'),
+        db.raw('ANY_VALUE(video.video_url_language_3) as video_url_language_3'),
+        db.raw('ANY_VALUE(video.thumbnail_url_language_2) as thumbnail_url_language_2'),
+        db.raw('ANY_VALUE(video.thumbnail_url_language_3) as thumbnail_url_language_3'),
+        db.raw('ANY_VALUE(phone.name) as model'),
+        db.raw('ANY_VALUE(phone.manufacturer) as manufacturer'),
+        db.raw('ANY_VALUE(phonetype.PhoneType) as phone_type'),
+        db.raw('ANY_VALUE(phoneClone.language) as language')
+      )
+      .from('video')
+      .join('phoneClone', 'video.phonefk', 'phoneClone.phoneFK')
+      .join('phone', 'video.phonefk', 'phone.pk')
+      .join('phonetype', 'phone.PhoneTypeFK', 'phonetype.PK')
+      .join('customer_video', 'video.PK', 'customer_video.video_FK')
+      .join('customer', 'customer_video.Customer_FK', 'customer.PK')
+      .where({ 'customer.name': customerName })
+      .groupBy('video.PK');
+  } finally {
+    await closeConnection();
+  }
+}
+
+async function getDbData(customerId) {
+  const db = createConnection();
+  try {
+    return await db('products').where('customer', customerId);
+  } finally {
+    await closeConnection();
+  }
+}
+
+async function executeQuery(query, params = []) {
+  const db = createConnection();
+  try {
+    const [rows] = await db.raw(query, params);
+    return rows;
+  } finally {
+    await closeConnection();
+  }
 }
 
 module.exports = {
@@ -164,8 +179,4 @@ module.exports = {
   getGuideData,
   getTutorialData,
   getVideoData,
-  SQL_FAQ_QUERY,
-  SQL_GUIDE_QUERY,
-  SQL_TUTORIAL_QUERY,
-  SQL_VIDEO_QUERY
 };
