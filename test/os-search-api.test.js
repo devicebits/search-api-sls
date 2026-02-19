@@ -1,14 +1,11 @@
 const http = require('http');
 
-const TEST_INDEX = 'customer-docomopacificca';
+const TEST_INDEX = 'dfcl3ca';
 
 const postData = JSON.stringify({
     index: TEST_INDEX,
     project: 'ca', // 'ca' for agentai, 'acad' for selfservice
-    query: 'internet issues',
-    filters: {
-        phone_type: 'Android'
-    },
+    query: 'atm pin',
     aggs: {
         manufacturer: {
             terms: { field: 'manufacturer', size: 100, order: { _count: 'desc' } }

@@ -125,6 +125,7 @@ function buildQuery(query, project = null, langId = null) {
       langId ? getLanguageCol('heading', langId, true) : 'heading_language_1',
       langId ? getLanguageCol('description', langId, true) : 'description_language_1'
     ],
+    collapse: { field: 'pk' },
     highlight: buildHighlightQuery(query, project, langId),
     _source: { includes: ['*'], excludes: [] }
   }

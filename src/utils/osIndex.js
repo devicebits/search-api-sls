@@ -533,30 +533,28 @@ async function createIndex(index, upsert = true) {
     }
 }
 
-// Helper to clean and convert row data
-function parseRow(row) {
-    const BOOLEAN_FIELDS = ['disabled', 'outdated', 'featured_video'];
-    const doc = {};
-    for (const [k, v] of Object.entries(row)) {
-        if (v !== null && v !== undefined) {
-            if (BOOLEAN_FIELDS.includes(k)) {
-                try {
-                    doc[k] = Boolean(Number(v));
-                } catch {
-                    doc[k] = v;
-                }
-            } else {
-                doc[k] = v;
-            }
-        }
-    }
-    return doc;
+// Utility to add required keys to each article based on type
+function addRequiredKeys(articles, type) {
+    const requiredKeys = {
+        '@timestamp': new Date(),
+        type: type,
+        disabled: false,
+        deleted: 0,
+        outdated: false,
+    };
+    return articles.map((article) => ({ ...article, ...requiredKeys }));
 }
 
-// Fetches MySQL data and ingests into OpenSearch
+// Utility to generate OS bulk index metadata
+const _getIndex = (customer, id, type) => {
+    const articleId = `${type}-${id}-1`;
+    return { _index: customer, _type: 'doc', _id: articleId };
+};
+
+// Bulk ingest logic for OpenSearch
 async function ingestData({ index, customer }) {
     const client = getOpenSearchClient();
-    // Fetch data from MySQL
+    // Fetch all data for the customer from MySQL
     const [faqRows, guideRows, tutorialRows, videoRows] = await Promise.all([
         getFaqData(customer),
         getGuideData(customer),
@@ -564,50 +562,50 @@ async function ingestData({ index, customer }) {
         getVideoData(customer)
     ]);
 
-    // Helper to get doc id
-    function getDocId(row, idFields) {
-        for (const f of idFields) {
-            if (row[f] != null) return String(row[f]);
-            if (row[f.toLowerCase()] != null) return String(row[f.toLowerCase()]);
-            if (row[f.toUpperCase()] != null) return String(row[f.toUpperCase()]);
-        }
-        return null;
-    }
-
-    // Ingest all data types
-    const contentTypes = [
-        { name: 'faq', rows: faqRows, idFields: ['PK', 'pk'] },
-        { name: 'guide', rows: guideRows, idFields: ['PK'] },
-        { name: 'tutorial', rows: tutorialRows, idFields: ['PK'] },
-        { name: 'video', rows: videoRows, idFields: ['PK', 'pk'] }
+    // Add required keys and collect all docs
+    const types = [
+        { name: 'faq', rows: faqRows },
+        { name: 'guide', rows: guideRows },
+        { name: 'tutorial', rows: tutorialRows },
+        { name: 'video', rows: videoRows }
     ];
 
-    let success = 0, failed = 0, errors = [];
-    for (const { name, rows, idFields } of contentTypes) {
-        for (let i = 0; i < rows.length; i++) {
-            const row = rows[i];
-            const docId = getDocId(row, idFields);
-            if (!docId) {
-                failed++;
-                errors.push({ type: name, row: i, error: 'Missing doc id', data: row });
-                continue;
-            }
-            const doc = parseRow(row);
-            try {
-                await client.client.index({
-                    index,
-                    id: docId,
-                    body: doc
-                });
-                success++;
-            } catch (e) {
-                failed++;
-                errors.push({ type: name, row: i, error: e.message, data: row });
-            }
+    let allDocs = [];
+    for (const { name, rows } of types) {
+        if (!rows || !rows.length) continue;
+        const articles = addRequiredKeys(rows, name);
+        for (let i = 0; i < articles.length; i++) {
+            const doc = articles[i];
+            const docId = _getIndex(customer, doc.pk || doc.id || i, name)._id;
+            if (!docId) continue;
+            allDocs.push({ ...doc, _docId: String(docId) });
         }
     }
-    // Refresh index
-    await client.client.indices.refresh({ index });
+
+    let success = 0, failed = 0, errors = [];
+    if (allDocs.length > 0) {
+        try {
+            const result = await client.client.helpers.bulk({
+                datasource: allDocs,
+                onDocument(doc) {
+                    return { index: _getIndex(customer, doc.pk || doc.id, doc.type) };
+                },
+                refreshOnCompletion: true,
+                onDrop(doc) {
+                    failed++;
+                    errors.push({ error: 'Dropped doc (missing id or error)', data: doc });
+                },
+            });
+            success = result.successful;
+            failed += result.failed;
+            if (result.errors && result.errors.length) {
+                errors.push(...result.errors);
+            }
+        } catch (err) {
+            failed = allDocs.length;
+            errors.push({ error: err.message || err, data: null });
+        }
+    }
     return { success, failed, errors };
 }
 
