@@ -17,6 +17,52 @@ This is the repository that manages all the calls to various search engines like
 ```
 4. Run `sls offline`
 
+### Running with Docker
+
+1. Login to [Serverless](https://app.serverless.com/) for `SERVERLESS_ACCESS_KEY`
+2. If running in Linux/WSL:
+  ```bash
+  sudo swapoff -a
+  sudo sysctl -w vm.max_map_count=262144
+  ```
+
+3. Copy `.env.example` to `.env` and update the environment variables as needed
+  ```bash
+  cp .env.example .env
+  ```
+
+4. Build the Docker image:
+  ```bash
+  make compose-build
+  ```
+
+5. Run the Docker container:
+  ```bash
+  make compose-up
+  ```
+
+6. Import MySQL dump (if needed):
+  ```bash
+  # Assuming you have SQL dump files named `temporary_*.sql` in a local `Dump` directory and dumped db script is using db name matching `DATABASE_NAME`
+  docker cp ./Dump mysql:/Dump
+  docker exec -it mysql bash
+  cd /Dump
+  DATABASE_NAME=your_database_name
+  DATABASE_PASSWORD=your_database_password
+  for f in temporary_*.sql; do mysql -u admin -p"$DATABASE_PASSWORD" $DATABASE_NAME < "$f"; done
+  ```
+
+### Testing locally
+- Use `package.json` scripts to ingest the index in OpenSearch/ElasticSeach using MySQL data
+  ```bash
+  npm run test:ingest:os
+  ```
+
+- Use `package.json` scripts to test OpenSearch/ElasticSeach search
+  ```bash
+  npm run test:search:os
+  ```
+
 ### Endpoints
 
 **1. Create an index and ingest data**
@@ -27,7 +73,7 @@ URL - http://localhost:3000/create
 
 Method - POST
 
-Payload 
+Payload
 
 ```
   {

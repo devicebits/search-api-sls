@@ -1,0 +1,2 @@
+web browser,browser
+set up,activate,first time,activation,setup

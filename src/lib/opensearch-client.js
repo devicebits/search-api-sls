@@ -9,7 +9,8 @@ const getOpenSearchClient = () => {
       port: parseInt(process.env.OPENSEARCH_PORT) || 443,
       region: process.env.AWS_REGION || 'us-east-1',
       username: process.env.OPENSEARCH_MASTER_USERNAME,
-      password: process.env.OPENSEARCH_MASTER_PASSWORD
+      password: process.env.OPENSEARCH_MASTER_PASSWORD,
+      protocol: process.env.OPENSEARCH_PROTOCOL || 'http',
     };
     if (!config.host || !config.username || !config.password) {
       throw new Error('Missing required OpenSearch configuration in environment variables');

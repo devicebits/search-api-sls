@@ -1,0 +1,13 @@
+server.name: ${SERVERNAME}
+server.host: "0.0.0.0"
+server.port: 5601
+server.customResponseHeaders : { "Access-Control-Allow-Credentials" : "true" }
+
+# Configure OpenSearch connection
+opensearch.hosts: ${OPENSEARCH_HOSTS} # OpenSearch nodes that OpenSearch Dashboards will query
+opensearch.username: ${OPENSEARCH_USERNAME}
+opensearch.password: ${OPENSEARCH_PASSWORD}
+
+data_source.enabled: true
+workspace.enabled: true
+explore.enabled: true

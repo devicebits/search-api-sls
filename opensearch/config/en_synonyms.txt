@@ -1,0 +1,39 @@
+s7 edge,s7 edge
+out of warranty,oow,out-of-warranty
+out of service,out of service
+out of money,out of money
+out of data,out of data
+mobile data,internet
+web browser,browser
+voice mail,voicemail
+phone call,phone call
+screen frozen,screen stuck,screen hanging,screen hangs
+phone carrier,carrier
+phone number,sim number
+auto refill,auto-refill
+set up,install,user guide,setup,setting up
+video call,videocall,video-call
+long distance,long distance model
+manual,tutorial,guide
+phone service,call
+call history,call log,recent calls
+transfer service,transfer data,transfer phone number,transfer number,transfer contacts,port number,port phone number
+straight talk,straight talk
+personal hotspot,hotspot
+text message,sms
+multimedia message,multi media message,multimedia messaging service,mms
+sim card,sim
+block number,block number
+mins,minutes
+international mins,international minutes
+message blocking,message blocking
+activate phone,first time,activation
+phone,smartphone,device
+power on,turns on,turn on,enable
+power off,turns off,turn off,disable
+fix,solve
+browse,view
+timer,delay
+goes out,outage
+end service,end service
+wifi,wi-fi
