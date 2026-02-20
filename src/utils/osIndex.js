@@ -548,7 +548,7 @@ function addRequiredKeys(articles, type) {
 // Utility to generate OS bulk index metadata
 const _getIndex = (customer, id, type) => {
     const articleId = `${type}-${id}-1`;
-    return { _index: customer, _type: 'doc', _id: articleId };
+    return { _index: customer, _id: articleId };
 };
 
 // Bulk ingest logic for OpenSearch
