@@ -31,12 +31,11 @@ jobs:
           scope: "@devicebits"
           always-auth: true
 
-      - name: Cache multiple paths
+      - name: Cache npm cache
         uses: actions/cache@v4
         with:
           path: |
             ~/.npm
-            **/node_modules
           key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
 
       - name: Install dependencies
