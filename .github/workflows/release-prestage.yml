@@ -44,6 +44,6 @@ jobs:
         run: |
           echo -e "$STAGENAME:\n  <<: *DEFAULT" >> serverless.env.yml
           cat serverless.env.yml
-          ./node_modules/.bin/sls deploy --stage $STAGENAME
+          npx sls deploy --stage $STAGENAME
         env:
           STAGENAME: qa-${{ github.event.pull_request.head.ref }}
