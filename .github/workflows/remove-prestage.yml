@@ -1,0 +1,47 @@
+name: Remove Prestage
+run-name: "[Automated] @${{ github.actor }} ran ${{ github.workflow }} on ${{ github.ref }}"
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  rm-branch-deploy:
+    name: Remove branch deployment
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "${{ secrets.OIDC_AWS_ROLE_SLS_DEPLOYMENT_PROD }}"
+          aws-region: ${{ vars.AWS_DEFAULT_REGION || 'us-east-1' }}
+          role-session-name: "GITHUB-${{github.run_id}}"
+
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@devicebits"
+          always-auth: true
+
+      - name: Cache multiple paths
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            **/node_modules
+          key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Remove branch deployment
+        run: |
+          echo -e "${STAGENAME}:\n  <<: *DEFAULT" >> serverless.env.yml
+          echo ${STAGENAME}
+          ./node_modules/.bin/sls remove --stage ${STAGENAME}
+        env:
+          STAGENAME: qa-${{ github.event.pull_request.head.ref }}
