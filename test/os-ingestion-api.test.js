@@ -1,6 +1,11 @@
 const http = require('http');
 
-const TEST_CUSTOMER = 'dfcl3ca';
+let TEST_CUSTOMER = 'dfcl3ca';
+const CUSTOMER_ARG = process.argv[2];
+if (CUSTOMER_ARG) {
+    console.log('Using customer from argument:', CUSTOMER_ARG);
+    TEST_CUSTOMER = CUSTOMER_ARG;
+}
 const TEST_INDEX = TEST_CUSTOMER;
 
 const postData = JSON.stringify({

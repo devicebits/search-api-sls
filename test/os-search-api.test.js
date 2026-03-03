@@ -1,6 +1,11 @@
 const http = require('http');
 
-const TEST_INDEX = 'dfcl3ca';
+let TEST_INDEX = 'dfcl3ca';
+const INDEX_ARG = process.argv[2];
+if (INDEX_ARG) {
+    console.log('Using index from argument:', INDEX_ARG);
+    TEST_INDEX = INDEX_ARG;
+}
 
 const postData = JSON.stringify({
     index: TEST_INDEX,
