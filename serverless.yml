@@ -27,7 +27,7 @@ custom:
     stage: ${sls:stage}
     createRoute53Record: true
     endpointType: "regional"
-    apiType: "rest"
+    apiType: "http"
     autoDomain: true
 
 functions:
