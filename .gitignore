@@ -5,3 +5,5 @@ certs
 logs/*.log
 mysql/data
 /Dump
+Dump*
+node_modules*

@@ -1,8 +1,13 @@
+
+// Load environment variables from .env file
+require('dotenv').config();
+
 const OpenSearchClient = require('../engines/OpenSearch/openSearchClient');
 
 let osClientInstance = null;
 
 const getOpenSearchClient = () => {
+  console.log("process.env",process.env)
   if (!osClientInstance) {
     const config = {
       host: process.env.OPENSEARCH_HOST,
@@ -10,7 +15,7 @@ const getOpenSearchClient = () => {
       region: process.env.AWS_REGION || 'us-east-1',
       username: process.env.OPENSEARCH_MASTER_USERNAME,
       password: process.env.OPENSEARCH_MASTER_PASSWORD,
-      protocol: process.env.OPENSEARCH_PROTOCOL || 'http',
+      protocol: process.env.OPENSEARCH_PROTOCOL || 'https',
     };
     if (!config.host || !config.username || !config.password) {
       throw new Error('Missing required OpenSearch configuration in environment variables');

@@ -1,4 +1,4 @@
-const { Client } = require('@opensearch-project/opensearch');
+const { Client } = require("@opensearch-project/opensearch");
 
 class OpenSearchClient {
   /**
@@ -10,16 +10,18 @@ class OpenSearchClient {
    * @param {boolean} [config.useAwsCredentials=true] - Whether to use AWS credentials
    */
   constructor(config) {
-    if (!config.host) throw new Error('Missing required config: host');
+    if (!config.host) throw new Error("Missing required config: host");
 
     this.host = config.host;
     this.port = config.port || 443;
-    this.region = config.region || process.env.AWS_REGION || 'us-east-1';
-    this.service = config.service || (this.host.includes('aoss') ? 'aoss' : 'es');
-    this.protocol = config.protocol || 'https';
+    this.region = config.region || process.env.AWS_REGION || "us-east-1";
+    this.service =
+      config.service || (this.host.includes("aoss") ? "aoss" : "es");
+    this.protocol = config.protocol || "https";
     this.timeout = config.timeout || 5000;
     this.username = config.username;
     this.password = config.password;
+    console.log("OpenSearch Client Config:", config);
     this.client = this.createClient();
   }
 
@@ -30,11 +32,12 @@ class OpenSearchClient {
       requestTimeout: this.timeout,
       auth: {
         username: this.username,
-        password: this.password
+        password: this.password,
       },
       ssl: {
-        rejectUnauthorized:  process.env.NODE_ENV === 'production' ? true : false
-      }
+        rejectUnauthorized:
+          process.env.NODE_ENV === "production" ? true : false,
+      },
     };
 
     return new Client(clientConfig);
@@ -48,18 +51,18 @@ class OpenSearchClient {
   async indexExists(indexName) {
     try {
       if (!indexName) {
-        throw new Error('Index name should be present');
+        throw new Error("Index name should be present");
       }
       const response = await this.client.indices.exists({
         index: indexName,
       });
       return response.body;
     } catch (error) {
-      throw new Error(`OpenSearch operation failed: ${error.message ? error.message: error}`);
+      throw new Error(
+        `OpenSearch operation failed: ${error.message ? error.message : error}`,
+      );
     }
   }
-
-
 
   /**
    * Searches an index with a specific query
@@ -76,8 +79,9 @@ class OpenSearchClient {
         throw new Error(`Index "${indexName}" does not exist`);
       }
       const searchBody = {
-        ...query
+        ...query,
       };
+      console.log("searchBody",JSON.stringify(searchBody, null, 2));
 
       searchBody.from = from;
       searchBody.size = size;
@@ -90,24 +94,24 @@ class OpenSearchClient {
         results: response?.body?.hits?.hits || [],
         total: response?.body?.hits?.total?.value || 0,
         size,
-        from
-      }
+        from,
+      };
 
       if (response?.body?.aggregations) {
         results.aggs = Object.fromEntries(
           Object.entries(response.body.aggregations)
             .filter(([aggName, aggValue]) => Array.isArray(aggValue?.buckets))
-            .map(([aggName, aggValue]) => [aggName, aggValue.buckets])
+            .map(([aggName, aggValue]) => [aggName, aggValue.buckets]),
         );
       }
-      
+
+      console.log("results",results.results.length);
       return results;
     } catch (error) {
-      console.error('Error searching index:', error);
+      console.error("Error searching index:", error);
       throw error;
     }
   }
-
 }
 
 module.exports = OpenSearchClient;

@@ -22,6 +22,7 @@ module.exports.index = async (event) => {
     body = event;
   }
   const { index, query, project, filters, aggs, from, size, langId } = body;
+  console.log('Received search request for index:', body);
   logApiEvent({ type: 'request', handler: 'osSearchHandler', event: body });
 
   try {

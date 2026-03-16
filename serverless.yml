@@ -3,7 +3,7 @@ service: search-api-sls
 provider:
   name: aws
   runtime: nodejs18.x
-  environment: ${file(serverless.env.yml):${self:custom.stage}}
+  # environment: ${file(serverless.env.yml):${self:custom.stage}}
 
   
 custom:
@@ -19,11 +19,13 @@ custom:
   domains:
     dev: search-staging.devicebits.com
     prod: search.devicebits.com
+  serverless-offline:
+    httpPort: 4000
 
 functions:
   ingest:
     handler: src/handlers/ingestionHandler.index
-    timeout: 300
+    timeout: 900
     events:
       - httpApi:
           path: /create
