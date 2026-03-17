@@ -663,10 +663,11 @@ async function ingestData({ index, customer }) {
         return;
       }
       const doc = parseRow(row);
-      if (doc["PK"] && !doc["pk"]) {
+      if (doc["PK"]) {
         doc["pk"] = doc["PK"];
         delete doc["PK"];
       }
+      delete doc["PK"];
       try {
         await client.client.index({
           index,
