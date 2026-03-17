@@ -642,10 +642,10 @@ async function ingestData({ index, customer }) {
 
   // Add required keys and collect all docs
   const contentTypes = [
-    { name: "faq", rows: faqRows, idFields: ["PK", "pk"] },
-    { name: "guide", rows: guideRows, idFields: ["PK"] },
-    { name: "tutorial", rows: tutorialRows, idFields: ["PK"] },
-    { name: "video", rows: videoRows, idFields: ["PK", "pk"] },
+    { name: "faq", rows: faqRows, idFields: ["pk"] },
+    { name: "guide", rows: guideRows, idFields: ["pk"] },
+    { name: "tutorial", rows: tutorialRows, idFields: ["pk"] },
+    { name: "video", rows: videoRows, idFields: ["pk"] },
   ];
 
   let success = 0,
@@ -663,6 +663,10 @@ async function ingestData({ index, customer }) {
         return;
       }
       const doc = parseRow(row);
+      if (doc["PK"] && !doc["pk"]) {
+        doc["pk"] = doc["PK"];
+        delete doc["PK"];
+      }
       try {
         await client.client.index({
           index,
