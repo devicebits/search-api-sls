@@ -21,7 +21,10 @@ class OpenSearchClient {
     this.timeout = config.timeout || 5000;
     this.username = config.username;
     this.password = config.password;
-    console.log("OpenSearch Client Config:", config);
+    console.log("OpenSearch Client Config:", {
+      ...config,
+      password: config.password ? "[redacted]" : undefined,
+    });
     this.client = this.createClient();
   }
 
@@ -109,6 +112,76 @@ class OpenSearchClient {
       return results;
     } catch (error) {
       console.error("Error searching index:", error);
+      throw error;
+    }
+  }
+
+  async indexDocument(indexName, id, document) {
+    try {
+      if (!indexName) {
+        throw new Error('Index name should be present');
+      }
+      if (!id) {
+        throw new Error('Document id should be present');
+      }
+
+      return this.client.index({
+        index: indexName,
+        id,
+        body: document,
+        refresh: true,
+      });
+    } catch (error) {
+      console.error('Error indexing document:', error);
+      throw error;
+    }
+  }
+
+  async updateDocument(indexName, id, document) {
+    try {
+      if (!indexName) {
+        throw new Error('Index name should be present');
+      }
+      if (!id) {
+        throw new Error('Document id should be present');
+      }
+
+      return this.client.update({
+        index: indexName,
+        id,
+        body: {
+          doc: document,
+          doc_as_upsert: true,
+        },
+        refresh: true,
+      });
+    } catch (error) {
+      console.error('Error updating document:', error);
+      throw error;
+    }
+  }
+
+  async deleteDocument(indexName, id) {
+    try {
+      if (!indexName) {
+        throw new Error('Index name should be present');
+      }
+      if (!id) {
+        throw new Error('Document id should be present');
+      }
+
+      return this.client.delete({
+        index: indexName,
+        id,
+        refresh: true,
+      });
+    } catch (error) {
+      const statusCode = error.statusCode || error.meta?.statusCode;
+      if (statusCode === 404) {
+        console.log(`Document ${id} was already absent from ${indexName}`);
+        return { body: { result: 'not_found' } };
+      }
+      console.error('Error deleting document:', error);
       throw error;
     }
   }

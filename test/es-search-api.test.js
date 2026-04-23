@@ -1,6 +1,6 @@
 const http = require('http');
 
-const TEST_INDEX = 'customer-docomopacificca';
+const TEST_INDEX = 'docomopacificca';
 
 const postData = JSON.stringify({
     index: TEST_INDEX,

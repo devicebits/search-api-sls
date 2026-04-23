@@ -1,6 +1,9 @@
 service: search-api-sls
 
 frameworkVersion: "3"
+# Let Serverless load .env before resolving ${env:...} values such as QUEUE_PROVIDER
+# for local `sls offline` runs. App-level dotenv only affects plain Node processes.
+useDotenv: true
 
 provider:
   name: aws
@@ -18,9 +21,22 @@ provider:
     subnetIds: ${ssm:/vpc/subnetIds}
   httpApi:
     cors: true
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
+            - sqs:GetQueueAttributes
+            - sqs:ChangeMessageVisibility
+          Resource: !GetAtt MessageQueue.Arn
 
 custom:
   stage: ${opt:stage, 'dev'}
+  queueName: search-api-sync-${self:provider.stage}
+  dlqName: search-api-sync-${self:provider.stage}-dlq
   customDomain:
     domainName: ${env:DOMAIN_NAME, 'search-${sls:stage}.devicebits.com'}
     basePath: ""
@@ -72,6 +88,51 @@ functions:
       - httpApi:
           path: /osautosuggest
           method: get
+  queueItem:
+    handler: src/handlers/queueItemHandler.index
+    environment:
+      SQS_QUEUE_URL: !Ref MessageQueue
+    events:
+      - httpApi:
+          path: /queue-item
+          method: post
+  queueWorker:
+    handler: src/handlers/queueWorkerHandler.index
+    timeout: 300
+    environment:
+      SQS_QUEUE_URL: !Ref MessageQueue
+    events:
+      - sqs:
+          arn: !GetAtt MessageQueue.Arn
+          batchSize: 10
+          functionResponseType: ReportBatchItemFailures
+
+resources:
+  Resources:
+    DeadLetterQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.dlqName}
+        MessageRetentionPeriod: 1209600
+
+    MessageQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.queueName}
+        VisibilityTimeout: 360
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt DeadLetterQueue.Arn
+          maxReceiveCount: 3
+
+  Outputs:
+    MessageQueueName:
+      Value: ${self:custom.queueName}
+    MessageQueueUrl:
+      Value: !Ref MessageQueue
+    MessageQueueArn:
+      Value: !GetAtt MessageQueue.Arn
+    DeadLetterQueueName:
+      Value: ${self:custom.dlqName}
 
 plugins:
   - serverless-offline

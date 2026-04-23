@@ -127,45 +127,142 @@ WHERE c.Name = ?
 GROUP BY video.PK, video.phonefk, video.outputOrder, video.name, video.name_language_2, video.name_language_3, video.video_url, video.academy_category_fk, video.concept, video.name_stemmed, video.presales, video.thumbnail_url, video.video_url_language_2, video.video_url_language_3, video.featured_video, video.disabled, video.thumbnail_url_language_2, video.thumbnail_url_language_3, video.outdated, p.Name, pc.customer_name, p.manufacturer, pc.language, pt.PhoneType
 `;
 
-async function getDbData(customerId) {
-  const conn = await createConnection();
-  const [rows] = await conn.execute('SELECT * FROM products WHERE customer = ?', [customerId]);
-  await closeConnection();
-  return rows;
-}
+// Derive single-item variants by injecting an extra primary-key filter before
+// the GROUP BY of each bulk query. Keeps the SQL single-sourced.
+const buildByIdQuery = (bulkSql, tableAlias) =>
+  bulkSql.replace(/GROUP BY/i, `AND ${tableAlias}.PK = ?\nGROUP BY`);
+
+const SQL_FAQ_BY_ID      = buildByIdQuery(SQL_FAQ_QUERY,      'faq');
+const SQL_GUIDE_BY_ID    = buildByIdQuery(SQL_GUIDE_QUERY,    'guide');
+const SQL_TUTORIAL_BY_ID = buildByIdQuery(SQL_TUTORIAL_QUERY, 'tutorial');
+const SQL_VIDEO_BY_ID    = buildByIdQuery(SQL_VIDEO_QUERY,    'video');
+
+const VALID_TYPES = new Set(['faq', 'guide', 'tutorial', 'video']);
 
 async function executeQuery(query, params = []) {
   const conn = await createConnection();
-  const [rows] = await conn.execute(query, params);
-  await closeConnection();
-  return rows;
+  try {
+    const [rows] = await conn.execute(query, params);
+    return rows;
+  } finally {
+    await closeConnection();
+  }
 }
 
-async function getFaqData(customerName) {
-  return await executeQuery(SQL_FAQ_QUERY, [customerName]);
+async function getDbData(customerId) {
+  return executeQuery('SELECT * FROM products WHERE customer = ?', [customerId]);
 }
 
-async function getGuideData(customerName) {
-  return await executeQuery(SQL_GUIDE_QUERY, [customerName]);
+// ---- Bulk fetchers (per customer) --------------------------------------------
+
+async function getFaqData(customerName)      { return executeQuery(SQL_FAQ_QUERY,      [customerName]); }
+async function getGuideData(customerName)    { return executeQuery(SQL_GUIDE_QUERY,    [customerName]); }
+async function getTutorialData(customerName) { return executeQuery(SQL_TUTORIAL_QUERY, [customerName]); }
+async function getVideoData(customerName)    { return executeQuery(SQL_VIDEO_QUERY,    [customerName]); }
+
+// ---- Single-item fetchers (per customer + itemId) ----------------------------
+
+async function getFaqById(customerName, itemId) {
+  const rows = await executeQuery(SQL_FAQ_BY_ID, [customerName, itemId]);
+  return rows[0] ?? null;
 }
 
-async function getTutorialData(customerName) {
-  return await executeQuery(SQL_TUTORIAL_QUERY, [customerName]);
+async function getGuideById(customerName, itemId) {
+  const rows = await executeQuery(SQL_GUIDE_BY_ID, [customerName, itemId]);
+  return rows[0] ?? null;
 }
 
-async function getVideoData(customerName) {
-  return await executeQuery(SQL_VIDEO_QUERY, [customerName]);
+async function getTutorialById(customerName, itemId) {
+  const rows = await executeQuery(SQL_TUTORIAL_BY_ID, [customerName, itemId]);
+  return rows[0] ?? null;
+}
+
+async function getVideoById(customerName, itemId) {
+  const rows = await executeQuery(SQL_VIDEO_BY_ID, [customerName, itemId]);
+  return rows[0] ?? null;
+}
+
+/**
+ * Dispatch to the correct single-item fetcher based on content type.
+ * @param {{ type: string, customer: string, itemId: string }} params
+ * @returns {Promise<object|null>} A single MySQL row or null if not found.
+ */
+async function getItemByTypeAndId({ type, customer, itemId }) {
+  if (!VALID_TYPES.has(type)) {
+    throw new Error(`Unsupported content type: ${type}. Expected one of ${[...VALID_TYPES].join(', ')}.`);
+  }
+  switch (type) {
+    case 'faq':      return getFaqById(customer, itemId);
+    case 'guide':    return getGuideById(customer, itemId);
+    case 'tutorial': return getTutorialById(customer, itemId);
+    case 'video':    return getVideoById(customer, itemId);
+    default:         return null;
+  }
+}
+
+// ---- Row → document parser ---------------------------------------------------
+
+const BOOLEAN_FIELDS = ['disabled', 'outdated', 'featured_video', 'presales', 'single_imaged'];
+const PK_FALLBACKS = ['PK', 'pk', 'Pk', 'pK'];
+
+/**
+ * Convert a MySQL row into the shape stored in OpenSearch/ElasticSearch.
+ * - Drops null/undefined values.
+ * - Normalizes the primary key into a lowercase `pk` field.
+ * - Coerces boolean-flag columns from MySQL's 0/1 into true/false.
+ */
+function parseRow(row) {
+  const doc = {};
+  let pkValue = null;
+
+  for (const [key, value] of Object.entries(row)) {
+    if (value === null || value === undefined) continue;
+
+    if (PK_FALLBACKS.includes(key)) {
+      pkValue = value;
+      continue;
+    }
+
+    if (BOOLEAN_FIELDS.includes(key)) {
+      const numeric = Number(value);
+      doc[key] = Number.isFinite(numeric) ? Boolean(numeric) : Boolean(value);
+      continue;
+    }
+
+    doc[key] = value;
+  }
+
+  if (pkValue !== null) {
+    doc.pk = pkValue;
+  }
+
+  return doc;
 }
 
 module.exports = {
+  // Bulk fetchers
   getDbData,
   executeQuery,
   getFaqData,
   getGuideData,
   getTutorialData,
   getVideoData,
+  // Single-item fetchers
+  getFaqById,
+  getGuideById,
+  getTutorialById,
+  getVideoById,
+  getItemByTypeAndId,
+  // Row parsing
+  parseRow,
+  VALID_TYPES,
+  // Raw SQL (exposed for callers that need the strings, e.g. logging)
   SQL_FAQ_QUERY,
   SQL_GUIDE_QUERY,
   SQL_TUTORIAL_QUERY,
-  SQL_VIDEO_QUERY
+  SQL_VIDEO_QUERY,
+  SQL_FAQ_BY_ID,
+  SQL_GUIDE_BY_ID,
+  SQL_TUTORIAL_BY_ID,
+  SQL_VIDEO_BY_ID,
 };

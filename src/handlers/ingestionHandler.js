@@ -5,11 +5,12 @@ module.exports.index = async (event) => {
   try {
     const body = event.body ? JSON.parse(event.body) : event;
     const { searchEngine, customerId, index } = body;
+    const targetIndex = index || customerId;
 
     switch (searchEngine?.toLowerCase()) {
       case 'elasticsearch': {
-        await createEsIndex(index || `customer-${customerId}`, false);
-        const { success, failed, errors } = await esIngestData({ index: index || `customer-${customerId}`, customer: customerId });
+        await createEsIndex(targetIndex, false);
+        const { success, failed, errors } = await esIngestData({ index: targetIndex, customer: customerId });
         return {
           statusCode: 200,
           body: JSON.stringify({ success, failed, errors: errors.slice(0, 10) })
@@ -17,8 +18,8 @@ module.exports.index = async (event) => {
       }
 
       case 'opensearch': {
-        await createOsIndex(index || `customer-${customerId}`, false);
-        const { success, failed, errors } = await osIngestData({ index: index || `customer-${customerId}`, customer: customerId });
+        await createOsIndex(targetIndex, false);
+        const { success, failed, errors } = await osIngestData({ index: targetIndex, customer: customerId });
         return {
           statusCode: 200,
           body: JSON.stringify({ success, failed, errors: errors.slice(0, 10) })

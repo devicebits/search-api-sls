@@ -4,6 +4,7 @@ volumes:
   esdata1:
   kibanadata:
   logstashdata01:
+  rabbitmq-data:
 
 networks:
   search-api:
@@ -149,6 +150,26 @@ services:
       retries: 120
     networks:
       - search-api
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: search-api-rabbitmq
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"        # AMQP protocol
+      - "${RABBITMQ_MGMT_PORT:-15672}:15672" # Management UI (http://localhost:15672, guest/guest by default)
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-guest}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - search-api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # elasticsearch01:
   #   build:

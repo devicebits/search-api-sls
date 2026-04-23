@@ -67,7 +67,7 @@ This is the repository that manages all the calls to various search engines like
 
 **1. Create an index and ingest data**
 
-This endpoint retrieves data from a database and ingests it into a specified search engine (currently supports Elasticsearch). It dynamically creates a customer-specific index (e.g., customer-222) if it doesn't exist and performs bulk indexing of the retrieved data.
+This endpoint retrieves data from a database and ingests it into a specified search engine (currently supports Elasticsearch). It dynamically creates a docomopacific index (for example `222`) if it doesn't exist and performs bulk indexing of the retrieved data.
 
 URL - http://localhost:3000/create
 
@@ -86,7 +86,7 @@ Payload
 
 This endpoint retrieves all documents from a specified Elasticsearch index. It supports querying via the index query parameter.
 
-URL - http://localhost:3000/?index=customer-222
+URL - http://localhost:3000/?index=222
 
 Method - GET
 
@@ -180,3 +180,99 @@ Response:
   }
 }
 ```
+
+**4. Queue an item for OpenSearch synchronization**
+
+This endpoint validates a queue payload and publishes it to the active queue backend (RabbitMQ locally, AWS SQS in deployed stages). The worker later consumes the message, looks up the canonical row in MySQL by `(type, itemId, customer)`, and synchronizes the resulting document to OpenSearch. In the queue payload, `customer` is also used as the target index name.
+
+Valid `type` values are `faq`, `guide`, `tutorial`, `video` — the worker uses `type` to pick the correct MySQL query.
+
+URL - http://localhost:3000/queue-item
+
+Method - POST
+
+Payload:
+
+```json
+{
+  "itemId": "12345",
+  "type": "faq",
+  "customer": "docomopacific",
+  "action": "update"
+}
+```
+
+Allowed `action` values are `create`, `update`, and `delete`.
+
+Success response:
+
+```json
+{
+  "message": "Queue item accepted",
+  "messageId": "message-id-from-queue",
+  "provider": "rabbitmq",
+  "item": {
+    "itemId": "12345",
+    "type": "faq",
+    "customer": "docomopacific",
+    "action": "update"
+  }
+}
+```
+
+Validation error response:
+
+```json
+{
+  "message": "Invalid queue item payload",
+  "details": [
+    "action must be one of \"create\", \"update\", or \"delete\""
+  ]
+}
+```
+
+### Queue setup
+
+The queue layer is **provider-agnostic** — the codebase picks a backend at startup based on the `QUEUE_PROVIDER` environment variable:
+
+| Environment | `QUEUE_PROVIDER` | Backend                                      |
+| ----------- | ---------------- | -------------------------------------------- |
+| Local       | `rabbitmq`       | RabbitMQ via `docker compose up rabbitmq`    |
+| AWS (all stages) | `sqs`       | AWS SQS (main queue + DLQ, defined in `serverless.yml`) |
+
+All code imports from `src/lib/queue-client.js`, which exposes a single normalized API (`sendQueueMessage`, `receiveQueueMessages`, `ackQueueMessage`, `nackQueueMessage`). The SQS and RabbitMQ providers live under `src/lib/providers/` and translate the API to their native protocol.
+
+#### Local development (RabbitMQ)
+
+1. Start the broker: `docker compose up rabbitmq`
+2. Management UI: http://localhost:15672 (default credentials `guest` / `guest`)
+3. Run the API offline: `npm start`
+4. Run the worker in another terminal: `npm run queue:worker`
+
+Relevant `.env` values:
+
+```
+QUEUE_PROVIDER=rabbitmq
+RABBITMQ_URL=amqp://guest:guest@localhost:5672
+RABBITMQ_QUEUE=search-api-sync
+RABBITMQ_DLQ=search-api-sync-dlq
+RABBITMQ_MAX_RECEIVE_COUNT=3
+```
+
+RabbitMQ failures are redelivered up to `RABBITMQ_MAX_RECEIVE_COUNT` times; after that the message is routed through the dead-letter exchange to `RABBITMQ_DLQ`.
+
+#### AWS (SQS)
+
+In deployed stages, `serverless.env.yml` sets `QUEUE_PROVIDER=sqs`. The `MessageQueue` and `DeadLetterQueue` resources are declared in `serverless.yml` with a 3-attempt redrive policy. The Lambda function `queueWorker` is invoked directly by the SQS event source — the handler reports failed messages via `batchItemFailures` so SQS retries only them.
+
+#### Worker behavior
+
+For every message:
+
+1. Parse and validate the payload (`itemId`, `type`, `customer`, `action`).
+2. For `create` / `update`: fetch the canonical row from MySQL via the appropriate single-item query (`getFaqById` / `getGuideById` / `getTutorialById` / `getVideoById`) and normalize it with `parseRow()`.
+3. For `delete`: skip the MySQL fetch and delete by `itemId` (404s are treated as already-deleted).
+4. Write to the target index named by `customer`.
+5. Ack on success; nack with requeue on transient failure; nack without requeue (→ DLQ) on malformed payloads.
+
+Switching providers requires no code changes — flip `QUEUE_PROVIDER` in the environment 
