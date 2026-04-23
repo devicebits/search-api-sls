@@ -4,15 +4,16 @@ let connection;
 
 async function createConnection() {
   if (!connection || connection.connection._closing) {
-    connection = await mysql.createConnection({
+    const config = {
       host: process.env.DATABASE_HOST,
       user: process.env.DATABASE_USER,
       password: process.env.DATABASE_PASSWORD,
       database: process.env.DATABASE_NAME,
-      ssl: {
-        rejectUnauthorized: true,
-      },
-    });
+    }
+    if (process.env.MYSQL_USE_SSL === 'true') {
+      config.ssl = { rejectUnauthorized: process.env.NODE_ENV === 'production' ? true : false };
+    }
+    connection = await mysql.createConnection(config)
   }
   return connection;
 }
