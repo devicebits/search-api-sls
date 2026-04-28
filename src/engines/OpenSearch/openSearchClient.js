@@ -84,7 +84,7 @@ class OpenSearchClient {
       const searchBody = {
         ...query,
       };
-      console.log("searchBody",JSON.stringify(searchBody, null, 2));
+      console.log("searchBody", JSON.stringify(searchBody, null, 2));
 
       searchBody.from = from;
       searchBody.size = size;
@@ -108,7 +108,7 @@ class OpenSearchClient {
         );
       }
 
-      console.log("results",results.results.length);
+      console.log("results", results.results.length);
       return results;
     } catch (error) {
       console.error("Error searching index:", error);
@@ -119,12 +119,18 @@ class OpenSearchClient {
   async indexDocument(indexName, id, document) {
     try {
       if (!indexName) {
-        throw new Error('Index name should be present');
+        throw new Error("Index name should be present");
       }
       if (!id) {
-        throw new Error('Document id should be present');
+        throw new Error("Document id should be present");
       }
 
+      console.log("indexDocument", {
+        indexName,
+        id,
+        fields: Object.keys(document),
+        document: JSON.stringify(document, null, 2),
+      });
       return this.client.index({
         index: indexName,
         id,
@@ -132,7 +138,7 @@ class OpenSearchClient {
         refresh: true,
       });
     } catch (error) {
-      console.error('Error indexing document:', error);
+      console.error("Error indexing document:", error);
       throw error;
     }
   }
@@ -140,12 +146,18 @@ class OpenSearchClient {
   async updateDocument(indexName, id, document) {
     try {
       if (!indexName) {
-        throw new Error('Index name should be present');
+        throw new Error("Index name should be present");
       }
       if (!id) {
-        throw new Error('Document id should be present');
+        throw new Error("Document id should be present");
       }
 
+      console.log("updateDocument", {
+        indexName,
+        id,
+        fields: Object.keys(document),
+        document: JSON.stringify(document, null, 2),
+      });
       return this.client.update({
         index: indexName,
         id,
@@ -156,7 +168,7 @@ class OpenSearchClient {
         refresh: true,
       });
     } catch (error) {
-      console.error('Error updating document:', error);
+      console.error("Error updating document:", error);
       throw error;
     }
   }
@@ -164,13 +176,14 @@ class OpenSearchClient {
   async deleteDocument(indexName, id) {
     try {
       if (!indexName) {
-        throw new Error('Index name should be present');
+        throw new Error("Index name should be present");
       }
       if (!id) {
-        throw new Error('Document id should be present');
+        throw new Error("Document id should be present");
       }
 
-      return this.client.delete({
+      console.log("deleteDocument", { indexName, id });
+      return await this.client.delete({
         index: indexName,
         id,
         refresh: true,
@@ -179,9 +192,9 @@ class OpenSearchClient {
       const statusCode = error.statusCode || error.meta?.statusCode;
       if (statusCode === 404) {
         console.log(`Document ${id} was already absent from ${indexName}`);
-        return { body: { result: 'not_found' } };
+        return { body: { result: "not_found" } };
       }
-      console.error('Error deleting document:', error);
+      console.error("Error deleting document:", error);
       throw error;
     }
   }

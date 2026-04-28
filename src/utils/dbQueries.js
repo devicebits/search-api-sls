@@ -202,7 +202,7 @@ async function getItemByTypeAndId({ type, customer, itemId }) {
 
 // ---- Row → document parser ---------------------------------------------------
 
-const BOOLEAN_FIELDS = ['disabled', 'outdated', 'featured_video', 'presales', 'single_imaged'];
+const BOOLEAN_FIELDS = ['disabled', 'outdated', 'featured_video', 'single_imaged'];
 const PK_FALLBACKS = ['PK', 'pk', 'Pk', 'pK'];
 
 /**

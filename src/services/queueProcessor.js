@@ -37,7 +37,9 @@ const parseMessageBody = (message) => {
   });
   try {
     const parsed =
-      typeof message.body === "string" ? JSON.parse(message.body) : message.body;
+      typeof message.body === "string"
+        ? JSON.parse(message.body)
+        : message.body;
     console.log("parseMessageBody end", {
       messageId: message?.id,
       parsedType: typeof parsed,
@@ -78,33 +80,21 @@ const isEngineAdapter = (engine) =>
   typeof engine.update === "function" &&
   typeof engine.delete === "function";
 
-const resolveEngines = (engines) => {
-  console.log("resolveEngines start", {
-    kind: Array.isArray(engines) ? "array" : typeof engines,
-  });
-  const engineList = Array.isArray(engines) ? engines : engines ? [engines] : [];
-  if (engineList.length && engineList.every(isEngineAdapter)) {
-    console.log("resolveEngines end", {
-      source: "provided-adapters",
-      engines: engineList.map((engine) => engine.name),
-    });
-    return engineList;
-  }
-  const resolved = resolveConfiguredEngines(engines);
-  console.log("resolveEngines end", {
-    source: "configured-engines",
-    engines: resolved.map((engine) => engine.name),
-  });
-  return resolved;
-};
-
 const resolveEngineSpecs = (engines) => {
   console.log("resolveEngineSpecs start", {
     kind: Array.isArray(engines) ? "array" : typeof engines,
   });
-  const engineList = Array.isArray(engines) ? engines : engines ? [engines] : [];
+  const engineList = Array.isArray(engines)
+    ? engines
+    : engines
+      ? [engines]
+      : [];
   if (engineList.length && engineList.every(isEngineAdapter)) {
-    const specs = engineList.map((engine) => ({ ok: true, name: engine.name, engine }));
+    const specs = engineList.map((engine) => ({
+      ok: true,
+      name: engine.name,
+      engine,
+    }));
     console.log("resolveEngineSpecs end", {
       source: "provided-adapters",
       engines: specs.map((spec) => spec.name),
@@ -125,7 +115,9 @@ const resolveEngineSpecs = (engines) => {
 
 const summarizeEngineResults = (settledResults) =>
   (() => {
-    console.log("summarizeEngineResults start", { count: settledResults.length });
+    console.log("summarizeEngineResults start", {
+      count: settledResults.length,
+    });
     const outcomes = settledResults.map((result) => {
       if (result.status === "fulfilled") return result.value;
       return {
@@ -146,11 +138,7 @@ const summarizeEngineResults = (settledResults) =>
 const throwIfAnyEngineFailed = (outcomes) => {
   console.log("throwIfAnyEngineFailed start", { count: outcomes.length });
   const failures = outcomes.filter((outcome) => !outcome.ok);
-  if (failures.length === 0) {
-    console.log("throwIfAnyEngineFailed end", { failed: 0 });
-    return;
-  }
-  if (failures.length < outcomes.length) {
+  if (failures.length < 2) {
     console.log("throwIfAnyEngineFailed end", {
       failed: failures.length,
       tolerated: true,
@@ -182,10 +170,7 @@ const throwIfAnyEngineFailed = (outcomes) => {
  */
 const syncDocument = async (
   payload,
-  {
-    engines,
-    fetchItem = getItemByTypeAndId,
-  } = {},
+  { engines, fetchItem = getItemByTypeAndId } = {},
 ) => {
   const index = getTargetIndexName(payload);
   const docId = String(payload.itemId);
@@ -195,6 +180,7 @@ const syncDocument = async (
     type: payload.type,
     customer: payload.customer,
     index,
+    payload,
   });
 
   let document;
@@ -219,6 +205,7 @@ const syncDocument = async (
       index,
       action: payload.action,
       fields: Object.keys(document),
+      document
     });
   }
 
@@ -252,7 +239,14 @@ const syncDocument = async (
         index,
         docId,
       });
-      return { ok: true, engine: engine.name, action: payload.action, index, docId, result };
+      return {
+        ok: true,
+        engine: engine.name,
+        action: payload.action,
+        index,
+        docId,
+        result,
+      };
     } catch (error) {
       console.error("Sync engine failed", {
         engine: engine.name,
@@ -266,15 +260,19 @@ const syncDocument = async (
     }
   };
 
+  const configuredSpecs = engineSpecs.filter((spec) => spec.ok);
+  const skippedSpecs = engineSpecs.filter((spec) => !spec.ok);
+  if (skippedSpecs.length > 0) {
+    console.warn("Sync skipping unconfigured engines", {
+      skipped: skippedSpecs.map((spec) => ({
+        engine: spec.name,
+        reason: spec.error?.message,
+      })),
+    });
+  }
+
   const engineResults = await Promise.allSettled(
-    engineSpecs.map(async (spec) => {
-      if (!spec.ok) {
-        const error = spec.error;
-        error.engine = spec.name;
-        throw error;
-      }
-      return runEngine(spec.engine);
-    }),
+    configuredSpecs.map(async (spec) => runEngine(spec.engine)),
   );
   const outcomes = summarizeEngineResults(engineResults);
   console.log("Sync outcomes", {
@@ -400,7 +398,10 @@ const processQueueBatch = async (messages, dependencies = {}) => {
 
   for (const message of messages) {
     try {
-      const { payload, outcome } = await processQueueMessage(message, dependencies);
+      const { payload, outcome } = await processQueueMessage(
+        message,
+        dependencies,
+      );
       results.push({ ok: true, messageId: message.id, payload, outcome });
     } catch (error) {
       results.push({ ok: false, messageId: message.id, error: error.message });
