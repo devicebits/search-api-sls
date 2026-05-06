@@ -1,5 +1,5 @@
 volumes:
-  opensearch-data1:
+  opensearch-data:
   mysql:
   esdata1:
   kibanadata:
@@ -105,7 +105,7 @@ services:
         soft: 65536 # maximum number of open files for the OpenSearch user, set to at least 65536 on modern systems
         hard: 65536
     volumes:
-      - opensearch-data1:/usr/share/opensearch/data
+      - opensearch-data:/usr/share/opensearch/data
       - ./opensearch/opensearch.yml:/usr/share/opensearch/config/opensearch.yml
     logging:
       driver: "json-file"

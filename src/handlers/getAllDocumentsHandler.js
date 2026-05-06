@@ -29,10 +29,9 @@ module.exports.index = async (event) => {
       case 'elasticsearch': {
         const client = new ElasticSearchClient({
           node: process.env.ELASTICSEARCH_ENDPOINT,
-          index,
         });
 
-        const documents = await client.getAllDocuments();
+        const documents = await client.getAllDocuments(index);
 
         return {
           statusCode: 200,

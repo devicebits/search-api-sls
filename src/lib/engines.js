@@ -59,7 +59,7 @@ const buildOpenSearchEngine = () => {
 
   osSingleton = {
     name: "opensearch",
-    create: (index, id, doc) => osClient.indexDocument(index, id, doc),
+    create: (index, id, doc) => osClient.createDocument(index, id, doc),
     update: (index, id, doc) => osClient.updateDocument(index, id, doc),
     delete: (index, id) => osClient.deleteDocument(index, id),
     _raw: osClient,

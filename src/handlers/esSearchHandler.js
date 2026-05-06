@@ -56,10 +56,6 @@ module.exports.index = async (event) => {
       finalQuery.aggs = aggs;
     }
 
-    // Add from/size for pagination
-    if (typeof from !== 'undefined') finalQuery.from = parseInt(from, 10) || 0;
-    if (typeof size !== 'undefined') finalQuery.size = parseInt(size, 10) || 10;
-
     logApiEvent({
       type: 'search_query',
       handler: 'esSearchHandler',
@@ -70,10 +66,13 @@ module.exports.index = async (event) => {
 
     const esClient = new ElasticSearchClient({
       node: process.env.ELASTICSEARCH_ENDPOINT,
-      index,
     });
-    // Query the ElasticSearch client
-    const results = await esClient.search(finalQuery);
+    const results = await esClient.search(
+      index,
+      finalQuery,
+      parseInt(from, 10) || 0,
+      parseInt(size, 10) || 10,
+    );
 
     logApiEvent({
       type: 'response',
