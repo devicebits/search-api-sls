@@ -1,4 +1,14 @@
 node_modules
 .serverless
+
+.env
+certs
+logs/*.log
+mysql/data
+/Dump
+Dump*
+node_modules*
 mysql/
 logs/
+elasticsearch/
+opensearch/

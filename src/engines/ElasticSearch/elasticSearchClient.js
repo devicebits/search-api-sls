@@ -1,127 +1,147 @@
-const { Client } = require('@elastic/elasticsearch');
+const { Client } = require("@elastic/elasticsearch");
 
 class ElasticSearchClient {
   constructor(config) {
     this.client = new Client({ node: config.node });
-    this.index = config.index;
+    this.client.ping().catch((err) => {
+      console.error("Error connecting to Elasticsearch:", err);
+      throw err;
+    });
   }
 
-  async ensureIndexExists() {
+  async createIndex(indexName, body = {}) {
     try {
-      console.log("index", this.index);
-      console.log("client =>", this.client);
-      const { body: exists } = await this.client.indices.exists({ index: this.index })
-      console.log("exists =>", exists);
-      if (!exists) {
-        const result = await this.client.indices.create({
-          index: this.index,
-          body: {
-            mappings: {
-              properties: {
-                id: { type: 'keyword' },
-                name: { type: 'text' },
-                description: { type: 'text' },
-                price: { type: 'float' },
-                createdAt: { type: 'date' }
-              }
-            }
-          }
-        });
-      }
-    } catch (error) {
-      console.error(`Error creating index '${this.index}':`, error);
-      throw error;
+      return await this.client.indices.create({
+        index: indexName,
+        body,
+      });
+    } catch (err) {
+      console.error(`Error creating index ${indexName}:`, err, err?.meta?.body?.error);
+      throw err;
     }
   }
 
+  async isIndexExists(indexName) {
+    try {
+      return await this.client.indices.exists({
+        index: indexName,
+      });
+    } catch (err) {
+      console.error(`Error checking existence of index ${indexName}:`, err);
+      throw err;
+    }
+  }
 
-  async updateIndex(settings = {}) {
+  async dropIndex(indexName) {
+    try {
+      const exists = await this.client.indices.exists({ index: indexName });
+      if (exists) {
+        return await this.client.indices.delete({ index: indexName });
+      }
+    } catch (err) {
+      console.error(`Error deleting index ${indexName}:`, err);
+      throw err;
+    }
+  }
+
+  async updateIndex(indexName, settings = {}) {
     try {
       return await this.client.indices.putSettings({
-        index: this.index,
+        index: indexName,
         body: settings,
       });
     } catch (err) {
-      console.error(`Error updating index ${this.index}:`, err);
+      console.error(`Error updating index ${indexName}:`, err);
       throw err;
     }
   }
 
-  async dropIndex() {
+  async refreshIndex(indexName) {
     try {
-      const exists = await this.client.indices.exists({ index: this.index });
-      if (exists) {
-        return await this.client.indices.delete({ index: this.index });
-      }
+      return await this.client.indices.refresh({ index: indexName });
     } catch (err) {
-      console.error(`Error deleting index ${this.index}:`, err);
+      console.error(`Error refreshing index ${indexName}:`, err);
       throw err;
     }
   }
 
-  async getAllDocuments() {
+  async getAllDocuments(indexName) {
     try {
       const result = await this.client.search({
-        index: this.index,
+        index: indexName,
         body: {
-          query: {
-            match_all: {}
-          },
-          size: 10000
-        }
+          query: { match_all: {} },
+          size: 10000,
+        },
       });
       return result.hits.hits;
     } catch (error) {
-      console.error(`Error retrieving documents from index ${this.index}:`, error);
+      console.error(`Error retrieving documents from index ${indexName}:`, error);
       throw error;
     }
   }
 
-
-  async createDocument(id, document) {
+  async createDocument(indexName, id, document) {
     try {
       return await this.client.index({
-        index: this.index,
+        index: indexName,
         id,
         body: document,
       });
     } catch (err) {
-      console.error(`Error creating document ${id} in index ${this.index}:`, err);
+      console.error(`Error creating document ${id} in index ${indexName}:`, err);
       throw err;
     }
   }
 
-  async updateDocument(id, partialDoc) {
+  async updateDocument(indexName, id, document) {
     try {
       return await this.client.update({
-        index: this.index,
+        index: indexName,
         id,
-        body: {
-          doc: partialDoc,
-        },
+        body: { doc: document },
       });
     } catch (err) {
-      console.error(`Error updating document ${id} in index ${this.index}:`, err);
+      console.error(`Error updating document ${id} in index ${indexName}:`, err);
       throw err;
     }
   }
 
-  async deleteDocument(id) {
+  async deleteDocument(indexName, id) {
     try {
       return await this.client.delete({
-        index: this.index,
+        index: indexName,
         id,
       });
     } catch (err) {
-      console.error(`Error deleting document ${id} in index ${this.index}:`, err);
+      console.error(`Error deleting document ${id} in index ${indexName}:`, err);
       throw err;
     }
   }
 
-  async ingest(data) {
-    await this.ensureIndexExists();
-    const bulkBody = data.flatMap(doc => [{ index: { _index: this.index } }, doc]);
-    await this.client.bulk({ refresh: true, body: bulkBody });
+  async ingest(indexName, { doc, docId }) {
+    try {
+      return await this.client.index({
+        index: indexName,
+        id: docId,
+        body: doc,
+      });
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  async search(indexName, body, from = 0, size = 10) {
+    try {
+      const searchBody = { ...body, from, size };
+      return await this.client.search({
+        index: indexName,
+        body: searchBody,
+      });
+    } catch (err) {
+      console.error(`Error searching in index ${indexName}:`, err);
+      throw err;
+    }
   }
 }
 
