@@ -5,7 +5,7 @@
   "main": "handler.js",
   "scripts": {
     "test": "npm run test:unit",
-    "test:unit": "node --test test/queue-client.test.js test/queue-item-schema.test.js test/queue-processor.test.js test/queue-worker-handler.test.js",
+    "test:unit": "node --test test/db-client.test.js test/queue-client.test.js test/queue-item-schema.test.js test/queue-processor.test.js test/queue-worker-handler.test.js",
     "test:integration:es:ingest": "node test/es-ingestion-api.test.js",
     "test:integration:es:search": "node test/es-search-api.test.js",
     "test:integration:os:ingest": "node test/os-ingestion-api.test.js",
